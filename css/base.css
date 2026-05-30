@@ -1,0 +1,130 @@
+/* ServiSalo — base compartida */
+:root {
+  --turquoise: #1db9b3;
+  --turquoise-dark: #148a86;
+  --black: #0d0d0d;
+  --gray-deep: #1a1a1a;
+  --gray-mid: #2e2e2e;
+  --gray-bottom: #454545;
+  --surface: #161616;
+  --surface-elevated: #1c1c1c;
+  --gold: #d4af37;
+  --gold-muted: #b8962e;
+  --text: #f5f5f5;
+  --text-muted: rgba(255, 255, 255, 0.55);
+  --border: rgba(29, 185, 179, 0.35);
+  --radius: 12px;
+  --font: "DM Sans", system-ui, -apple-system, sans-serif;
+  --content-max: 420px;
+  --app-max: 480px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+/* Degradado negro → gris (home, login, registro) */
+.page-gradient {
+  background: linear-gradient(180deg, var(--black) 0%, var(--gray-deep) 45%, var(--gray-mid) 78%, var(--gray-bottom) 100%);
+  background-attachment: fixed;
+}
+
+/* Catálogo: fondo en catalog.css (pantalla completa) */
+
+.brand {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.brand-servi {
+  color: var(--turquoise);
+}
+
+.brand-salo {
+  color: var(--gold);
+}
+
+.brand--hero {
+  font-size: clamp(2.5rem, 8vw, 3.5rem);
+}
+
+.brand--auth {
+  font-size: 1.75rem;
+  text-align: center;
+}
+
+/* Botones */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 15px 24px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.btn--uppercase {
+  text-transform: uppercase;
+}
+
+.btn--primary {
+  background: var(--turquoise);
+  color: var(--black);
+  border-color: var(--turquoise);
+}
+
+.btn--primary:hover {
+  background: #25cfc8;
+  border-color: #25cfc8;
+}
+
+.btn--outline-gold {
+  background: transparent;
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+.btn--outline-gold:hover {
+  background: rgba(212, 175, 55, 0.12);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+/* Desktop: centrar contenido de páginas auth/home (no aplica al catálogo) */
+@media (min-width: 600px) {
+  :root {
+    --content-max: 440px;
+  }
+}
+
+@media (min-width: 900px) {
+  :root {
+    --content-max: 460px;
+  }
+}
