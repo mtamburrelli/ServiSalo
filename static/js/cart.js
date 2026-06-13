@@ -5,8 +5,12 @@ const PAYMENT_HINTS = {
   yappy: "Pago con Yappy (Panamá). Te indicaremos el número o enlace al confirmar.",
 };
 
+function linePrice(product, unitType) {
+  return unitType === "unit" ? product.pricePerUnit : product.pricePerLb;
+}
+
 export function createCart() {
-  /** @type {Map<number, { legume: object, qty: number }>} */
+  /** @type {Map<number, { product: object, qty: number, unitType: string }>} */
   const lines = new Map();
   let paymentMethod = "ach";
   const listeners = new Set();
@@ -36,33 +40,34 @@ export function createCart() {
       }
     },
 
-    add(legume) {
-      const existing = lines.get(legume.id);
+    add(product, unitType = "lb") {
+      const key = `${product.id}-${unitType}`;
+      const existing = lines.get(key);
       if (existing) {
         existing.qty += 1;
       } else {
-        lines.set(legume.id, { legume, qty: 1 });
+        lines.set(key, { product, qty: 1, unitType });
       }
       notify();
     },
 
-    setQuantity(legumeId, qty) {
+    setQuantity(lineKey, qty) {
       if (qty <= 0) {
-        lines.delete(legumeId);
+        lines.delete(lineKey);
       } else {
-        const line = lines.get(legumeId);
+        const line = lines.get(lineKey);
         if (line) line.qty = qty;
       }
       notify();
     },
 
-    remove(legumeId) {
-      lines.delete(legumeId);
+    remove(lineKey) {
+      lines.delete(lineKey);
       notify();
     },
 
     getLines() {
-      return [...lines.values()];
+      return [...lines.entries()].map(([key, line]) => ({ key, ...line }));
     },
 
     get itemCount() {
@@ -71,7 +76,7 @@ export function createCart() {
 
     get total() {
       return [...lines.values()].reduce(
-        (sum, { legume, qty }) => sum + legume.pricePerLb * qty,
+        (sum, { product, qty, unitType }) => sum + linePrice(product, unitType) * qty,
         0
       );
     },
@@ -79,5 +84,7 @@ export function createCart() {
     isEmpty() {
       return lines.size === 0;
     },
+
+    linePrice,
   };
 }

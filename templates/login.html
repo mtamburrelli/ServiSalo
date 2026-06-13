@@ -11,12 +11,12 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="css/base.css" />
-    <link rel="stylesheet" href="css/auth.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}" />
   </head>
   <body class="page-gradient">
     <main class="auth">
-      <a class="auth__back" href="index.html">← Inicio</a>
+      <a class="auth__back" href="{{ url_for('home') }}">← Inicio</a>
 
       <h1 class="brand brand--auth">
         <span class="brand-servi">Servi</span><span class="brand-salo">Salo</span>
@@ -25,23 +25,25 @@
 
       <form class="auth__form" id="login-form" novalidate>
         <label class="field">
-          <span class="field__label">Correo o usuario</span>
-          <input class="field__input" type="text" name="user" autocomplete="username" required />
+          <span class="field__label">Correo electrónico</span>
+          <input class="field__input" type="email" name="email" autocomplete="email" required />
         </label>
         <label class="field">
           <span class="field__label">Contraseña</span>
           <input class="field__input" type="password" name="password" autocomplete="current-password" required />
         </label>
-        <button type="submit" class="btn btn--primary btn--uppercase">INGRESAR</button>
+
+        <p class="auth__error" id="login-error" hidden></p>
+
+        <button type="submit" class="btn btn--primary btn--uppercase" id="login-submit">INGRESAR</button>
       </form>
 
       <p class="auth__footer">
         ¿No tienes cuenta?
-        <a href="register.html">Crear cuenta</a>
+        <a href="{{ url_for('register_page') }}">Crear cuenta</a>
       </p>
-      <p class="auth__note">Maqueta: cualquier credencial permite el acceso.</p>
     </main>
 
-    <script type="module" src="js/login.js"></script>
+    <script type="module" src="{{ url_for('static', filename='js/login.js') }}"></script>
   </body>
 </html>

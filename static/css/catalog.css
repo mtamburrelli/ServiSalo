@@ -59,6 +59,37 @@
   border-color: var(--turquoise-dark);
 }
 
+.header__user {
+  position: absolute;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1.5px solid rgba(29, 185, 179, 0.35);
+  border-radius: 50%;
+  background: rgba(29, 185, 179, 0.1);
+  color: var(--turquoise);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.header__user:hover {
+  background: rgba(29, 185, 179, 0.2);
+  border-color: var(--turquoise);
+}
+
+.header__user-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.header__user-name {
+  display: none;
+}
+
 .main {
   flex: 1;
   overflow: hidden;
@@ -155,11 +186,42 @@
   line-height: 1.2;
 }
 
+.legume-card__prices {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .legume-card__price {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--gold);
+}
+
+.legume-card__price--unit {
+  font-size: 0.8rem;
+  color: var(--gold-muted);
+  font-weight: 500;
+}
+
+.catalog-loading,
+.catalog-error {
+  margin: 0 0 12px;
+  padding: 0 4px;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.catalog-error {
+  color: #e57373;
+}
+
+.legume-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .legume-card__add {
@@ -187,8 +249,24 @@
 }
 
 .legume-card__add svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
+}
+
+.legume-card__add-label {
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.legume-card__add--unit {
+  background: rgba(212, 175, 55, 0.25);
+  color: var(--gold);
+}
+
+.legume-card__add--unit:hover {
+  background: rgba(212, 175, 55, 0.4);
 }
 
 .cart-empty {
@@ -494,6 +572,233 @@
   transform: translateX(-50%) translateY(0);
 }
 
+/* ── Panel header compartido ─────────────────────────────────────────────── */
+.panel-header {
+  flex-shrink: 0;
+  padding: 16px 16px 8px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--turquoise);
+}
+
+/* ── Mis pedidos ─────────────────────────────────────────────────────────── */
+.panel#panel-orders {
+  overflow-y: auto;
+}
+
+.orders-body {
+  padding: 12px 16px calc(var(--nav-height) + 16px);
+}
+
+.orders-loading {
+  margin: 24px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.orders-empty {
+  padding: 48px 0;
+  text-align: center;
+}
+
+.orders-empty[hidden] { display: none !important; }
+
+.orders-empty__text {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.orders-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.order-card {
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.order-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.order-card__id {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.order-card__date {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.order-card__status {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.order-card__status--pending    { background: rgba(234,179,8,.15); color: #facc15; }
+.order-card__status--confirmed  { background: rgba(34,197,94,.15); color: #4ade80; }
+.order-card__status--rejected   { background: rgba(239,68,68,.15); color: #f87171; }
+.order-card__status--dispatched { background: rgba(59,130,246,.15); color: #60a5fa; }
+.order-card__status--delivered  { background: rgba(29,185,179,.15); color: var(--turquoise); }
+
+.order-card__items {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.order-card__item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.order-card__item-name {
+  flex: 1;
+}
+
+.order-card__item-qty {
+  color: var(--text-muted);
+  margin: 0 8px;
+}
+
+.order-card__item-price {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.order-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.order-card__payment {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.order-card__total {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.order-card__rejection {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(239,68,68,.08);
+  border: 1px solid rgba(239,68,68,.2);
+  font-size: 0.82rem;
+  color: #f87171;
+  line-height: 1.4;
+}
+
+/* ── Mi perfil ───────────────────────────────────────────────────────────── */
+.panel#panel-profile {
+  overflow-y: auto;
+}
+
+.profile-body {
+  padding: 16px 16px calc(var(--nav-height) + 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-section__label {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+}
+
+/* .map-container, .map-hint, .map-coords, .field* → definidos en base.css */
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-form__error {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(229,115,115,.12);
+  border: 1px solid rgba(229,115,115,.35);
+  color: #ffb4b4;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.profile-form__error[hidden] { display: none !important; }
+
+.profile-section--danger {
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+
+.btn--outline-danger {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid rgba(239,68,68,.4);
+  border-radius: 10px;
+  background: transparent;
+  color: #f87171;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn--outline-danger:hover {
+  background: rgba(239,68,68,.1);
+  border-color: rgba(239,68,68,.7);
+}
+
+/* ── Tablet: rejilla 2 columnas ──────────────────────────────────────────── */
 /* Tablet: rejilla 2 columnas */
 @media (min-width: 540px) {
   .catalog {

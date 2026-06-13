@@ -12,8 +12,8 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="css/base.css" />
-    <link rel="stylesheet" href="css/home.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}" />
   </head>
   <body class="page-gradient">
     <main class="home">
@@ -25,8 +25,8 @@
       </div>
 
       <div class="home__actions">
-        <a class="btn btn--primary btn--uppercase" href="login.html">INGRESAR</a>
-        <a class="btn btn--outline-gold btn--uppercase" href="register.html">CREAR CUENTA</a>
+        <a class="btn btn--primary btn--uppercase" href="{{ url_for('login_page') }}">INGRESAR</a>
+        <a class="btn btn--outline-gold btn--uppercase" href="{{ url_for('register_page') }}">CREAR CUENTA</a>
       </div>
     </main>
   </body>
