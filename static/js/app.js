@@ -187,22 +187,44 @@ function renderCart() {
   }
 
   cartLines.innerHTML = lines.map(({ key, product, qty, unitType }) => {
-    const price = unitType === "unit"
-      ? formatPriceUnit(product.pricePerUnit)
-      : formatPriceLb(product.pricePerLb);
+    const unitPrice = unitType === "unit" ? product.pricePerUnit : product.pricePerLb;
+    const priceLabel = unitType === "unit"
+      ? formatPriceUnit(unitPrice)
+      : formatPriceLb(unitPrice);
+    const lineSubtotal = Math.round(unitPrice * qty * 100) / 100;
+
+    const safeKey = escapeHtml(key);
+    const qtyControls = unitType === "lb"
+      ? `<div class="cart-line__qty cart-line__qty--lb">
+           <label class="cart-line__qty-label" for="qty-${safeKey}">lb</label>
+           <input
+             id="qty-${safeKey}"
+             class="cart-line__qty-input"
+             type="number"
+             inputmode="decimal"
+             min="0.01"
+             step="0.01"
+             value="${qty}"
+             data-qty="${safeKey}"
+             aria-label="Cantidad en libras"
+           />
+         </div>`
+      : `<div class="cart-line__qty">
+           <button type="button" data-dec="${safeKey}" aria-label="Quitar una">−</button>
+           <span>${qty}</span>
+           <button type="button" data-inc="${safeKey}" aria-label="Agregar una">+</button>
+         </div>`;
+
     return `
-    <li class="cart-line" data-key="${key}">
+    <li class="cart-line" data-key="${safeKey}">
       <div class="cart-line__thumb">${IMAGE_PLACEHOLDER_SVG.replace("<span>Imagen</span>", "")}</div>
       <div class="cart-line__info">
         <p class="cart-line__name">${escapeHtml(product.name)}</p>
-        <p class="cart-line__price">${price}</p>
+        <p class="cart-line__price">${priceLabel}</p>
+        <p class="cart-line__subtotal">Subtotal ${formatTotal(lineSubtotal)}</p>
       </div>
-      <div class="cart-line__qty">
-        <button type="button" data-dec="${key}" aria-label="Quitar una">−</button>
-        <span>${qty}</span>
-        <button type="button" data-inc="${key}" aria-label="Agregar una">+</button>
-      </div>
-      <button type="button" class="cart-line__qty cart-line__remove" data-remove="${key}" aria-label="Eliminar">
+      ${qtyControls}
+      <button type="button" class="cart-line__qty cart-line__remove" data-remove="${safeKey}" aria-label="Eliminar">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
           <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
         </svg>
@@ -234,6 +256,33 @@ cartLines.addEventListener("click", (e) => {
     if (line) cart.setQuantity(dec.dataset.dec, line.qty - 1);
   } else if (rem) {
     cart.remove(rem.dataset.remove);
+  }
+});
+
+function applyLbQuantity(input) {
+  const key = input.dataset.qty;
+  if (!key) return;
+  const raw = input.value.trim().replace(",", ".");
+  const qty = Number(raw);
+  if (!Number.isFinite(qty) || qty <= 0) {
+    cart.remove(key);
+    return;
+  }
+  cart.setQuantity(key, qty);
+}
+
+// Aplicar cantidad al terminar de editar (evita perder el foco al escribir)
+cartLines.addEventListener("change", (e) => {
+  const input = e.target.closest("[data-qty]");
+  if (input) applyLbQuantity(input);
+});
+
+cartLines.addEventListener("keydown", (e) => {
+  const input = e.target.closest("[data-qty]");
+  if (!input) return;
+  if (e.key === "Enter") {
+    e.preventDefault();
+    input.blur();
   }
 });
 

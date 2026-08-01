@@ -61,7 +61,7 @@ body {
 }
 
 .brand--hero {
-  font-size: clamp(2.5rem, 8vw, 3.5rem);
+  font-size: clamp(2.5rem, 10vw, 7rem);
 }
 
 .brand--auth {
@@ -172,6 +172,29 @@ body {
   padding-right: 40px;
 }
 
+.field__select option {
+  background: #1a1a1a;
+  color: #f5f5f5;
+}
+
+.field-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.field--grow {
+  flex: 1;
+}
+
+.field--dv {
+  flex: 0 0 72px;
+}
+
+.field--dv .field__input {
+  text-align: center;
+}
+
 /* ── Mapa (compartido: registro + perfil) ─────────────────────────────────── */
 .map-container {
   width: 100%;
@@ -196,6 +219,19 @@ body {
   text-align: center;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
+}
+
+.map-locate-btn {
+  margin-top: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+}
+
+.map-locate-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 /* Desktop: centrar contenido de páginas auth/home (no aplica al catálogo) */

@@ -41,6 +41,17 @@
           <input class="field__input" type="text" name="name" autocomplete="name" required />
         </label>
 
+        <div class="field-row" id="ruc-field" hidden>
+          <label class="field field--grow">
+            <span class="field__label">RUC</span>
+            <input class="field__input" type="number" name="ruc" inputmode="numeric" min="0" placeholder="Ej. 12345678" />
+          </label>
+          <label class="field field--dv">
+            <span class="field__label">DV</span>
+            <input class="field__input" type="number" name="ruc_dv" inputmode="numeric" min="0" max="99" maxlength="2" placeholder="00" />
+          </label>
+        </div>
+
         <label class="field">
           <span class="field__label">Correo electrónico</span>
           <input class="field__input" type="email" name="email" autocomplete="email" required />
@@ -87,9 +98,15 @@
 
         <div class="field">
           <span class="field__label">Ubicación exacta en el mapa</span>
-          <p class="map-hint">Mueve el pin al lugar exacto donde quieres recibir tu pedido.</p>
+          <p class="map-hint" id="map-hint">
+            Te pediremos permiso para usar tu ubicación y colocar el pin automáticamente.
+            Luego puedes ajustarlo si hace falta.
+          </p>
           <div id="map" class="map-container"></div>
-          <p class="map-coords" id="map-coords">Pin no colocado aún</p>
+          <p class="map-coords" id="map-coords">Buscando tu ubicación…</p>
+          <button type="button" class="btn btn--outline-gold map-locate-btn" id="btn-locate">
+            Usar mi ubicación
+          </button>
         </div>
 
         <input type="hidden" name="latitude" id="input-latitude" />

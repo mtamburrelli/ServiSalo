@@ -75,6 +75,16 @@
   text-decoration: underline;
 }
 
+.auth__forgot {
+  color: var(--text-muted) !important;
+  font-weight: 400 !important;
+  font-size: 0.88rem;
+}
+
+.auth__forgot:hover {
+  color: var(--turquoise) !important;
+}
+
 .auth__note {
   margin-top: 16px;
   text-align: center;

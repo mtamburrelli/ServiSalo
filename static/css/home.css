@@ -55,5 +55,17 @@
 
   .home__tagline {
     font-size: 1.1rem;
+    max-width: 380px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .home {
+    max-width: 680px;
+  }
+
+  .home__tagline {
+    font-size: 1.25rem;
+    max-width: 480px;
   }
 }

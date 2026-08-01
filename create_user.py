@@ -6,6 +6,7 @@ Uso:
   python create_user.py --name Miguel --email miguel@test.com --password 123456 --role admin
 """
 import argparse
+from datetime import datetime, timezone
 
 from app import app
 from auth_utils import hash_password, verify_password
@@ -38,6 +39,7 @@ def main():
             phone=args.phone,
             role=args.role,
             is_active=True,
+            created_at=datetime.now(timezone.utc),
         )
         db.session.add(user)
         db.session.commit()

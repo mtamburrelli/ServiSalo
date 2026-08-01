@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 
+from admin_routes import register_admin_routes
 from auth_routes import (
     get_current_user,
     login_required_api,
@@ -18,6 +19,15 @@ app.config.from_object("config.DevConfig")
 
 db.init_app(app)
 register_auth_routes(app)
+register_admin_routes(app)
+
+
+def _post_login_redirect():
+    """Los admin van a su panel; los clientes al catálogo."""
+    user = get_current_user()
+    if user and user.is_admin:
+        return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("catalog_page"))
 
 
 # ——— Páginas ———
@@ -25,21 +35,21 @@ register_auth_routes(app)
 @app.route("/")
 def home():
     if get_current_user():
-        return redirect(url_for("catalog_page"))
+        return _post_login_redirect()
     return render_template("index.html")
 
 
 @app.route("/login")
 def login_page():
     if get_current_user():
-        return redirect(url_for("catalog_page"))
+        return _post_login_redirect()
     return render_template("login.html")
 
 
 @app.route("/register")
 def register_page():
     if get_current_user():
-        return redirect(url_for("catalog_page"))
+        return _post_login_redirect()
     return render_template("register.html")
 
 
@@ -93,6 +103,14 @@ def api_create_order():
             return jsonify({"error": f"unit_type inválido: {unit_type}"}), 400
         if not isinstance(qty, (int, float)) or qty <= 0:
             return jsonify({"error": "La cantidad debe ser mayor a 0."}), 400
+
+        # Unidades: enteros. Libras: permiten decimales (máx. 2 cifras).
+        if unit_type == "unit":
+            if not float(qty).is_integer():
+                return jsonify({"error": "La cantidad por unidad debe ser un número entero."}), 400
+            qty = int(qty)
+        else:
+            qty = round(float(qty), 2)
 
         product = db.session.get(Product, product_id)
         if not product or not product.is_active:
@@ -211,6 +229,17 @@ def api_update_address():
 
 def init_db():
     db.create_all()
+    # Migración liviana: añadir columna ruc si la BD ya existía sin ella
+    with db.engine.connect() as conn:
+        from sqlalchemy import text
+        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
+        if "ruc" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN ruc INTEGER"))
+        if "ruc_dv" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN ruc_dv INTEGER"))
+        if "created_at" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN created_at DATETIME"))
+        conn.commit()
     seed_catalog()
 
 

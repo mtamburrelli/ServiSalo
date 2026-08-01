@@ -1,6 +1,7 @@
+from datetime import datetime, timezone
 from functools import wraps
 
-from flask import jsonify, redirect, request, session, url_for
+from flask import abort, jsonify, redirect, request, session, url_for
 from sqlalchemy.exc import IntegrityError
 
 from auth_utils import hash_password, verify_password
@@ -34,6 +35,34 @@ def login_required_api(view):
     return wrapped
 
 
+def admin_required_page(view):
+    """Protege páginas del panel admin: exige sesión + role == admin."""
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return redirect(url_for("login_page"))
+        if not user.is_admin:
+            abort(403)
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def admin_required_api(view):
+    """Protege endpoints /api/admin/*: exige sesión + role == admin."""
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return jsonify({"error": "No autenticado"}), 401
+        if not user.is_admin:
+            return jsonify({"error": "No autorizado"}), 403
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
 def register_auth_routes(app):
     @app.route("/api/auth/register", methods=["POST"])
     def api_register():
@@ -45,6 +74,18 @@ def register_auth_routes(app):
         account_type = (data.get("account_type") or "persona").strip()
         password = data.get("password") or ""
         password_confirm = data.get("password_confirm") or ""
+        raw_ruc = data.get("ruc")
+        raw_ruc_dv = data.get("ruc_dv")
+        try:
+            ruc = int(raw_ruc) if raw_ruc is not None else None
+        except (TypeError, ValueError):
+            ruc = None
+        try:
+            ruc_dv = int(raw_ruc_dv) if raw_ruc_dv is not None else None
+            if ruc_dv is not None and not (0 <= ruc_dv <= 99):
+                ruc_dv = None
+        except (TypeError, ValueError):
+            ruc_dv = None
 
         address_line  = (data.get("address_line") or "").strip()
         corregimiento = (data.get("corregimiento") or "").strip()
@@ -87,9 +128,12 @@ def register_auth_routes(app):
             email=email,
             phone=phone,
             account_type=account_type,
+            ruc=ruc if account_type == "empresa" else None,
+            ruc_dv=ruc_dv if account_type == "empresa" else None,
             password_hash=hash_password(password),
             role="customer",
             is_active=True,
+            created_at=datetime.now(timezone.utc),
         )
         address = Address(
             user=user,
