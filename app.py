@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timezone
 
 from flask import Flask, jsonify, redirect, render_template, request, url_for
@@ -9,13 +10,24 @@ from auth_routes import (
     login_required_page,
     register_auth_routes,
 )
-from config import Config
 from emails import send_new_order_to_owner
 from models import Address, Order, OrderItem, Product, db
 from seed import seed_catalog
 
 app = Flask(__name__)
-app.config.from_object("config.DevConfig")
+# Render define RENDER=true; en local usa DevConfig
+_config = (
+    "config.ProdConfig"
+    if os.environ.get("RENDER") or os.environ.get("FLASK_ENV") == "production"
+    else "config.DevConfig"
+)
+app.config.from_object(_config)
+
+if not app.config.get("SQLALCHEMY_DATABASE_URI"):
+    raise RuntimeError(
+        "DATABASE_URL no está definida. "
+        "En Render: Environment → DATABASE_URL (Internal Database URL)."
+    )
 
 db.init_app(app)
 register_auth_routes(app)
@@ -227,23 +239,32 @@ def api_update_address():
 
 # ——— Inicialización ———
 
+def _sqlite_column_names(conn):
+    from sqlalchemy import text
+    return [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
+
+
 def init_db():
     db.create_all()
-    # Migración liviana: añadir columna ruc si la BD ya existía sin ella
-    with db.engine.connect() as conn:
-        from sqlalchemy import text
-        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
-        if "ruc" not in cols:
-            conn.execute(text("ALTER TABLE users ADD COLUMN ruc INTEGER"))
-        if "ruc_dv" not in cols:
-            conn.execute(text("ALTER TABLE users ADD COLUMN ruc_dv INTEGER"))
-        if "created_at" not in cols:
-            conn.execute(text("ALTER TABLE users ADD COLUMN created_at DATETIME"))
-        conn.commit()
+    # Migración liviana solo para SQLite legado (Postgres usa create_all + modelos)
+    if db.engine.dialect.name == "sqlite":
+        with db.engine.connect() as conn:
+            from sqlalchemy import text
+            cols = _sqlite_column_names(conn)
+            if "ruc" not in cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN ruc INTEGER"))
+            if "ruc_dv" not in cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN ruc_dv INTEGER"))
+            if "created_at" not in cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN created_at DATETIME"))
+            conn.commit()
     seed_catalog()
 
 
+# gunicorn (Render) no ejecuta __main__; crear tablas al importar la app
+with app.app_context():
+    init_db()
+
+
 if __name__ == "__main__":
-    with app.app_context():
-        init_db()
     app.run(debug=True, port=5000)
