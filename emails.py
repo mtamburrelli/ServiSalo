@@ -6,8 +6,44 @@ from flask import current_app
 logger = logging.getLogger(__name__)
 
 
-def _init_resend():
-    resend.api_key = current_app.config["RESEND_API_KEY"]
+def _init_resend() -> str:
+    api_key = (current_app.config.get("RESEND_API_KEY") or "").strip()
+    if not api_key:
+        raise RuntimeError(
+            "RESEND_API_KEY no está configurada. "
+            "Agrégala en Render → Environment (y en .env local)."
+        )
+    resend.api_key = api_key
+    return api_key
+
+
+def _mail_from() -> str:
+    return (
+        current_app.config.get("MAIL_FROM")
+        or "ServiSalo <onboarding@resend.dev>"
+    )
+
+
+def _send_email(*, to: str, subject: str, html: str) -> bool:
+    """Envía un correo con Resend. Devuelve True/False y deja el error en logs."""
+    try:
+        _init_resend()
+        result = resend.Emails.send({
+            "from": _mail_from(),
+            "to": [to],
+            "subject": subject,
+            "html": html,
+        })
+        logger.info("Email enviado a %s — subject=%r result=%s", to, subject, result)
+        return True
+    except Exception as exc:
+        logger.exception(
+            "Error enviando email a %s — subject=%r — %s",
+            to,
+            subject,
+            exc,
+        )
+        return False
 
 
 def _fmt_payment(method: str) -> str:
@@ -69,8 +105,6 @@ def send_new_order_to_owner(order, user, address) -> bool:
     con un link directo al panel para confirmarla o rechazarla.
     """
     try:
-        _init_resend()
-
         base_url  = current_app.config["APP_BASE_URL"].rstrip("/")
         owner_email = current_app.config["OWNER_EMAIL"]
 
@@ -137,15 +171,11 @@ def send_new_order_to_owner(order, user, address) -> bool:
         </div>
         """
 
-        resend.Emails.send({
-            "from": "ServiSalo <onboarding@resend.dev>",
-            "to": [owner_email],
-            "subject": f"🛒 Nueva orden #{order.id} de {user.name}",
-            "html": html,
-        })
-
-        logger.info("Email de nueva orden #%s enviado al dueño.", order.id)
-        return True
+        return _send_email(
+            to=owner_email,
+            subject=f"Nueva orden #{order.id} de {user.name}",
+            html=html,
+        )
 
     except Exception:
         logger.exception("Error enviando email de nueva orden #%s al dueño.", order.id)
@@ -155,166 +185,141 @@ def send_new_order_to_owner(order, user, address) -> bool:
 # ── Email al cliente cuando su orden es confirmada ───────────────────────────
 
 def send_order_confirmed_to_customer(order, user) -> bool:
-    try:
-        _init_resend()
-
-        html = f"""
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
-          <h2 style="background:#0d9488;color:#fff;padding:16px 20px;margin:0;border-radius:6px 6px 0 0;">
-            ¡Tu orden fue confirmada! — ServiSalo
-          </h2>
-          <div style="padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;">
-            <p>Hola <strong>{user.name}</strong>,</p>
-            <p>Tu orden <strong>#{order.id}</strong> por un total de
-               <strong>B/. {order.total_amount:.2f}</strong> ha sido <strong>confirmada</strong>.</p>
-            <p>Nos pondremos en contacto contigo pronto para coordinar la entrega.</p>
-            <p style="color:#6b7280;font-size:13px;margin-top:24px;">
-              Método de pago: {_fmt_payment(order.payment_method)}
-            </p>
-          </div>
-        </div>
-        """
-
-        resend.Emails.send({
-            "from": "ServiSalo <onboarding@resend.dev>",
-            "to": [user.email],
-            "subject": f"✅ Orden #{order.id} confirmada — ServiSalo",
-            "html": html,
-        })
-
-        logger.info("Email de confirmación de orden #%s enviado a %s.", order.id, user.email)
-        return True
-
-    except Exception:
-        logger.exception("Error enviando confirmación de orden #%s.", order.id)
-        return False
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
+      <h2 style="background:#0d9488;color:#fff;padding:16px 20px;margin:0;border-radius:6px 6px 0 0;">
+        ¡Tu orden fue confirmada! — ServiSalo
+      </h2>
+      <div style="padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;">
+        <p>Hola <strong>{user.name}</strong>,</p>
+        <p>Tu orden <strong>#{order.id}</strong> por un total de
+           <strong>B/. {order.total_amount:.2f}</strong> ha sido <strong>confirmada</strong>.</p>
+        <p>Nos pondremos en contacto contigo pronto para coordinar la entrega.</p>
+        <p style="color:#6b7280;font-size:13px;margin-top:24px;">
+          Método de pago: {_fmt_payment(order.payment_method)}
+        </p>
+      </div>
+    </div>
+    """
+    return _send_email(
+        to=user.email,
+        subject=f"Orden #{order.id} confirmada — ServiSalo",
+        html=html,
+    )
 
 
 # ── Email al cliente cuando su orden es rechazada ────────────────────────────
 
 def send_order_rejected_to_customer(order, user) -> bool:
-    try:
-        _init_resend()
+    reason_html = (
+        f"<p><strong>Motivo:</strong> {order.rejection_reason}</p>"
+        if order.rejection_reason
+        else ""
+    )
 
-        reason_html = (
-            f"<p><strong>Motivo:</strong> {order.rejection_reason}</p>"
-            if order.rejection_reason
-            else ""
-        )
-
-        html = f"""
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
-          <h2 style="background:#dc2626;color:#fff;padding:16px 20px;margin:0;border-radius:6px 6px 0 0;">
-            Orden no procesada — ServiSalo
-          </h2>
-          <div style="padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;">
-            <p>Hola <strong>{user.name}</strong>,</p>
-            <p>Lamentamos informarte que tu orden <strong>#{order.id}</strong>
-               no pudo ser procesada en esta ocasión.</p>
-            {reason_html}
-            <p>Si tienes alguna duda, contáctanos directamente.</p>
-          </div>
-        </div>
-        """
-
-        resend.Emails.send({
-            "from": "ServiSalo <onboarding@resend.dev>",
-            "to": [user.email],
-            "subject": f"❌ Orden #{order.id} no procesada — ServiSalo",
-            "html": html,
-        })
-
-        logger.info("Email de rechazo de orden #%s enviado a %s.", order.id, user.email)
-        return True
-
-    except Exception:
-        logger.exception("Error enviando rechazo de orden #%s.", order.id)
-        return False
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
+      <h2 style="background:#dc2626;color:#fff;padding:16px 20px;margin:0;border-radius:6px 6px 0 0;">
+        Orden no procesada — ServiSalo
+      </h2>
+      <div style="padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;">
+        <p>Hola <strong>{user.name}</strong>,</p>
+        <p>Lamentamos informarte que tu orden <strong>#{order.id}</strong>
+           no pudo ser procesada en esta ocasión.</p>
+        {reason_html}
+        <p>Si tienes alguna duda, contáctanos directamente.</p>
+      </div>
+    </div>
+    """
+    return _send_email(
+        to=user.email,
+        subject=f"Orden #{order.id} no procesada — ServiSalo",
+        html=html,
+    )
 
 
 # ── Verificar correo al crear cuenta ─────────────────────────────────────────
 
 def send_email_verification(user, raw_token: str) -> bool:
-    try:
-        _init_resend()
-        base_url = current_app.config["APP_BASE_URL"].rstrip("/")
-        verify_link = f"{base_url}/verify-email?token={raw_token}"
+    base_url = current_app.config["APP_BASE_URL"].rstrip("/")
+    verify_link = f"{base_url}/verify-email?token={raw_token}"
 
-        html = f"""
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
-          <h2 style="background:#0d9488;color:#fff;padding:16px 20px;margin:0;border-radius:6px 6px 0 0;">
-            Confirma tu correo — ServiSalo
-          </h2>
-          <div style="padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;">
-            <p>Hola <strong>{user.name}</strong>,</p>
-            <p>Gracias por registrarte. Haz clic en el botón para verificar tu correo y activar tu cuenta.</p>
-            <div style="text-align:center;margin:28px 0;">
-              <a href="{verify_link}"
-                 style="background:#0d9488;color:#fff;padding:12px 28px;border-radius:6px;
-                        text-decoration:none;font-weight:bold;font-size:15px;">
-                Verificar mi correo
-              </a>
-            </div>
-            <p style="color:#6b7280;font-size:13px;">
-              Si no creaste esta cuenta, ignora este mensaje. El enlace vence en 48 horas.
-            </p>
-            <p style="color:#9ca3af;font-size:12px;word-break:break-all;">{verify_link}</p>
-          </div>
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
+      <h2 style="background:#0d9488;color:#fff;padding:16px 20px;margin:0;border-radius:6px 6px 0 0;">
+        Confirma tu correo — ServiSalo
+      </h2>
+      <div style="padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;">
+        <p>Hola <strong>{user.name}</strong>,</p>
+        <p>Gracias por registrarte. Haz clic en el botón para verificar tu correo y activar tu cuenta.</p>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="{verify_link}"
+             style="background:#0d9488;color:#fff;padding:12px 28px;border-radius:6px;
+                    text-decoration:none;font-weight:bold;font-size:15px;">
+            Verificar mi correo
+          </a>
         </div>
-        """
-
-        resend.Emails.send({
-            "from": "ServiSalo <onboarding@resend.dev>",
-            "to": [user.email],
-            "subject": "Confirma tu correo — ServiSalo",
-            "html": html,
-        })
-        logger.info("Email de verificación enviado a %s.", user.email)
-        return True
-    except Exception:
-        logger.exception("Error enviando verificación a %s.", user.email)
-        return False
+        <p style="color:#6b7280;font-size:13px;">
+          Si no creaste esta cuenta, ignora este mensaje. El enlace vence en 48 horas.
+        </p>
+        <p style="color:#9ca3af;font-size:12px;word-break:break-all;">{verify_link}</p>
+      </div>
+    </div>
+    """
+    ok = _send_email(
+        to=user.email,
+        subject="Confirma tu correo — ServiSalo",
+        html=html,
+    )
+    # Si Resend solo permite el correo del dueño (plan gratis), avisar al owner
+    if not ok:
+        owner = (current_app.config.get("OWNER_EMAIL") or "").strip()
+        if owner and owner.lower() != (user.email or "").lower():
+            _send_email(
+                to=owner,
+                subject=f"[ServiSalo] No se pudo enviar verificación a {user.email}",
+                html=(
+                    f"<p>Falló el envío de verificación a <strong>{user.email}</strong> "
+                    f"({user.name}).</p>"
+                    f"<p>Enlace manual:</p>"
+                    f"<p><a href=\"{verify_link}\">{verify_link}</a></p>"
+                    f"<p>Causa frecuente: Resend en modo prueba solo envía a tu correo "
+                    f"verificado. Verifica un dominio en Resend para clientes reales.</p>"
+                ),
+            )
+    return ok
 
 
 # ── Recuperar contraseña ─────────────────────────────────────────────────────
 
 def send_password_reset(user, raw_token: str) -> bool:
-    try:
-        _init_resend()
-        base_url = current_app.config["APP_BASE_URL"].rstrip("/")
-        reset_link = f"{base_url}/reset-password?token={raw_token}"
+    base_url = current_app.config["APP_BASE_URL"].rstrip("/")
+    reset_link = f"{base_url}/reset-password?token={raw_token}"
 
-        html = f"""
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
-          <h2 style="background:#0d9488;color:#fff;padding:16px 20px;margin:0;border-radius:6px 6px 0 0;">
-            Restablecer contraseña — ServiSalo
-          </h2>
-          <div style="padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;">
-            <p>Hola <strong>{user.name}</strong>,</p>
-            <p>Recibimos una solicitud para restablecer tu contraseña. Usa el botón de abajo:</p>
-            <div style="text-align:center;margin:28px 0;">
-              <a href="{reset_link}"
-                 style="background:#0d9488;color:#fff;padding:12px 28px;border-radius:6px;
-                        text-decoration:none;font-weight:bold;font-size:15px;">
-                Elegir nueva contraseña
-              </a>
-            </div>
-            <p style="color:#6b7280;font-size:13px;">
-              Si no pediste este cambio, ignora este correo. El enlace vence en 1 hora.
-            </p>
-            <p style="color:#9ca3af;font-size:12px;word-break:break-all;">{reset_link}</p>
-          </div>
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
+      <h2 style="background:#0d9488;color:#fff;padding:16px 20px;margin:0;border-radius:6px 6px 0 0;">
+        Restablecer contraseña — ServiSalo
+      </h2>
+      <div style="padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;">
+        <p>Hola <strong>{user.name}</strong>,</p>
+        <p>Recibimos una solicitud para restablecer tu contraseña. Usa el botón de abajo:</p>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="{reset_link}"
+             style="background:#0d9488;color:#fff;padding:12px 28px;border-radius:6px;
+                    text-decoration:none;font-weight:bold;font-size:15px;">
+            Elegir nueva contraseña
+          </a>
         </div>
-        """
-
-        resend.Emails.send({
-            "from": "ServiSalo <onboarding@resend.dev>",
-            "to": [user.email],
-            "subject": "Restablecer contraseña — ServiSalo",
-            "html": html,
-        })
-        logger.info("Email de reset de contraseña enviado a %s.", user.email)
-        return True
-    except Exception:
-        logger.exception("Error enviando reset de contraseña a %s.", user.email)
-        return False
+        <p style="color:#6b7280;font-size:13px;">
+          Si no pediste este cambio, ignora este correo. El enlace vence en 1 hora.
+        </p>
+        <p style="color:#9ca3af;font-size:12px;word-break:break-all;">{reset_link}</p>
+      </div>
+    </div>
+    """
+    return _send_email(
+        to=user.email,
+        subject="Restablecer contraseña — ServiSalo",
+        html=html,
+    )

@@ -39,11 +39,21 @@ if (container) {
   }
 
   function renderInfo(user) {
+    const verified = user.email_verified
+      ? `<span class="badge badge--active">Verificado</span>`
+      : `<span class="badge badge--inactive">Sin verificar</span>`;
     infoEl.innerHTML = `
       <div class="admin-info-row"><span class="admin-info-row__label">Nombre</span>
         <span class="admin-info-row__value">${escapeHtml(user.name)}</span></div>
       <div class="admin-info-row"><span class="admin-info-row__label">Correo</span>
         <span class="admin-info-row__value">${escapeHtml(user.email)}</span></div>
+      <div class="admin-info-row"><span class="admin-info-row__label">Email</span>
+        <span class="admin-info-row__value">${verified}
+          ${user.email_verified ? "" : `
+          <button type="button" class="admin-btn admin-btn--sm admin-btn--gold" id="btn-verify-email" style="margin-left:8px">
+            Marcar verificado
+          </button>`}
+        </span></div>
       <div class="admin-info-row"><span class="admin-info-row__label">Teléfono</span>
         <span class="admin-info-row__value">${escapeHtml(user.phone ?? "—")}</span></div>
       <div class="admin-info-row"><span class="admin-info-row__label">Tipo de cuenta</span>
@@ -57,6 +67,16 @@ if (container) {
       <div class="admin-info-row"><span class="admin-info-row__label">Total de pedidos</span>
         <span class="admin-info-row__value">${user.orders_count}</span></div>
     `;
+
+    document.getElementById("btn-verify-email")?.addEventListener("click", async () => {
+      try {
+        await fetchJson(`/api/admin/users/${userId}/verify-email`, { method: "POST" });
+        await loadUser();
+      } catch (err) {
+        errorEl.hidden = false;
+        errorEl.textContent = err.message || "No se pudo verificar.";
+      }
+    });
   }
 
   function renderOrders(orders) {

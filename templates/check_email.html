@@ -24,8 +24,14 @@
       <p class="auth__subtitle">Confirma tu correo para activar la cuenta</p>
 
       <div class="auth__placeholder">
+        {% if email_sent %}
         <p>Te enviamos un enlace de verificación{% if email %} a <strong>{{ email }}</strong>{% endif %}.</p>
         <p>Abre el correo y haz clic en el botón. Revisa también spam o promociones.</p>
+        {% else %}
+        <p><strong>No pudimos enviar el correo de verificación</strong>{% if email %} a <strong>{{ email }}</strong>{% endif %}.</p>
+        <p>Revisa que <code>RESEND_API_KEY</code> esté en Render. Con el plan gratis de Resend solo se puede enviar a tu correo verificado; para clientes reales verifica un dominio en Resend.</p>
+        <p>Si eres el dueño, también recibirás un aviso con el enlace manual cuando falle el envío.</p>
+        {% endif %}
       </div>
 
       <form class="auth__form" id="resend-form">

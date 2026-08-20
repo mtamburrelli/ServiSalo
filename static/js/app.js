@@ -41,9 +41,18 @@ const IMAGE_PLACEHOLDER_SVG = `
   <span>Imagen</span>
 `;
 
-function formatPriceLb(value)   { return `B/. ${value.toFixed(2)} / lb`; }
-function formatPriceUnit(value) { return `B/. ${value.toFixed(2)} / unidad`; }
-function formatTotal(value)     { return `B/. ${value.toFixed(2)}`; }
+function formatPriceLb(value) {
+  const n = Number(value);
+  return `B/. ${(Number.isFinite(n) ? n : 0).toFixed(2)} / lb`;
+}
+function formatPriceUnit(value) {
+  const n = Number(value);
+  return `B/. ${(Number.isFinite(n) ? n : 0).toFixed(2)} / unidad`;
+}
+function formatTotal(value) {
+  const n = Number(value);
+  return `B/. ${(Number.isFinite(n) ? n : 0).toFixed(2)}`;
+}
 
 function escapeHtml(text) {
   const div = document.createElement("div");

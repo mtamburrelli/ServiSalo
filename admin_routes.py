@@ -15,13 +15,16 @@ ORDER_STATUSES = ["pending", "confirmed", "dispatched", "delivered", "rejected"]
 
 # ── Helpers de validación ─────────────────────────────────────────────────────
 
-def _parse_price(value):
-    """Convierte a float positivo o devuelve None si es inválido."""
+def _parse_price(value, *, allow_zero: bool = False):
+    """Convierte a float >= 0 (o > 0). None si es inválido."""
     try:
         price = float(value)
     except (TypeError, ValueError):
         return None
-    if price < 0:
+    if allow_zero:
+        if price < 0:
+            return None
+    elif price <= 0:
         return None
     return round(price, 2)
 
@@ -142,9 +145,9 @@ def register_admin_routes(app):
         if not name:
             errors.append("El nombre es obligatorio.")
         if price_per_unit is None:
-            errors.append("El precio por unidad debe ser un número mayor o igual a 0.")
+            errors.append("El precio por unidad debe ser un número mayor que 0.")
         if price_per_lb is None:
-            errors.append("El precio por libra debe ser un número mayor o igual a 0.")
+            errors.append("El precio por libra debe ser un número mayor que 0.")
         if errors:
             return jsonify({"error": errors[0], "errors": errors}), 400
 
@@ -179,14 +182,14 @@ def register_admin_routes(app):
         if "price_per_unit" in data:
             price = _parse_price(data.get("price_per_unit"))
             if price is None:
-                errors.append("El precio por unidad debe ser un número mayor o igual a 0.")
+                errors.append("El precio por unidad debe ser un número mayor que 0.")
             else:
                 product.price_per_unit = price
 
         if "price_per_lb" in data:
             price = _parse_price(data.get("price_per_lb"))
             if price is None:
-                errors.append("El precio por libra debe ser un número mayor o igual a 0.")
+                errors.append("El precio por libra debe ser un número mayor que 0.")
             else:
                 product.price_per_lb = price
 
@@ -233,6 +236,23 @@ def register_admin_routes(app):
         products = query.all()
         if not products:
             return jsonify({"error": "No hay productos para actualizar."}), 400
+
+        # Si hay precios en 0, el multiplicador no cambia nada útil
+        zero_names = []
+        for product in products:
+            bad_lb = apply_to in ("both", "lb") and (product.price_per_lb or 0) <= 0
+            bad_unit = apply_to in ("both", "unit") and (product.price_per_unit or 0) <= 0
+            if bad_lb or bad_unit:
+                zero_names.append(product.name)
+        if zero_names:
+            sample = ", ".join(zero_names[:5])
+            more = f" (+{len(zero_names) - 5} más)" if len(zero_names) > 5 else ""
+            return jsonify({
+                "error": (
+                    "Hay productos con precio 0. Guarda precios mayores que 0 "
+                    f"antes de multiplicar. Ejemplos: {sample}{more}"
+                ),
+            }), 400
 
         updated = []
         for product in products:
@@ -392,3 +412,16 @@ def register_admin_routes(app):
             "address": address.to_dict() if address else None,
             "orders": [o.to_admin_dict(include_user=False, include_address=False) for o in orders],
         })
+
+    @app.route("/api/admin/users/<int:user_id>/verify-email", methods=["POST"])
+    @admin_required_api
+    def api_admin_verify_user_email(user_id):
+        """Marca el correo como verificado (útil si Resend no entregó el link)."""
+        user = db.session.get(User, user_id)
+        if not user:
+            return jsonify({"error": "Usuario no encontrado."}), 404
+        user.email_verified = True
+        user.email_verify_token = None
+        user.email_verify_sent_at = None
+        db.session.commit()
+        return jsonify({"ok": True, "user": user.to_dict()})

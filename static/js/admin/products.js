@@ -25,10 +25,10 @@ function renderRow(p) {
           data-field="name" value="${escapeHtml(p.name)}" />
       </td>
       <td class="admin-table__num">
-        <input class="admin-inline-input" type="number" min="0" step="0.01" data-field="price_per_lb" value="${p.price_per_lb}" />
+        <input class="admin-inline-input" type="number" min="0.01" step="0.01" data-field="price_per_lb" value="${p.price_per_lb}" />
       </td>
       <td class="admin-table__num">
-        <input class="admin-inline-input" type="number" min="0" step="0.01" data-field="price_per_unit" value="${p.price_per_unit}" />
+        <input class="admin-inline-input" type="number" min="0.01" step="0.01" data-field="price_per_unit" value="${p.price_per_unit}" />
       </td>
       <td class="admin-table__center">
         <span class="badge badge--${p.is_active ? "active" : "inactive"}">${p.is_active ? "Activo" : "Inactivo"}</span>
@@ -85,6 +85,41 @@ function updateMultiplierPreview() {
   multiplierPreview.textContent = describeMultiplier(multiplierInput.value);
 }
 
+function rowPayload(row) {
+  const name = row.querySelector('[data-field="name"]').value.trim();
+  const pricePerLb = Number(row.querySelector('[data-field="price_per_lb"]').value);
+  const pricePerUnit = Number(row.querySelector('[data-field="price_per_unit"]').value);
+  return {
+    name,
+    price_per_lb: pricePerLb,
+    price_per_unit: pricePerUnit,
+  };
+}
+
+async function saveRow(row, { silent = false } = {}) {
+  const id = row.dataset.id;
+  const payload = rowPayload(row);
+  if (!payload.name) {
+    throw new Error("El nombre no puede estar vacío.");
+  }
+  if (!(payload.price_per_lb > 0) || !(payload.price_per_unit > 0)) {
+    throw new Error("Los precios deben ser mayores que 0. Guarda cada fila antes de multiplicar.");
+  }
+  await fetchJson(`/api/admin/products/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  if (!silent) showToast("Producto actualizado.");
+}
+
+/** Persiste todas las filas visibles (inputs actuales → BD) antes del multiplicador. */
+async function saveAllVisibleRows() {
+  const rows = [...tbody.querySelectorAll("tr[data-id]")];
+  for (const row of rows) {
+    await saveRow(row, { silent: true });
+  }
+}
+
 tbody.addEventListener("click", async (e) => {
   const saveBtn2 = e.target.closest("[data-save]");
   const toggleBtn = e.target.closest("[data-toggle]");
@@ -92,22 +127,10 @@ tbody.addEventListener("click", async (e) => {
   if (saveBtn2) {
     const id = saveBtn2.dataset.save;
     const row = tbody.querySelector(`tr[data-id="${id}"]`);
-    const name = row.querySelector('[data-field="name"]').value.trim();
-    const pricePerLb = row.querySelector('[data-field="price_per_lb"]').value;
-    const pricePerUnit = row.querySelector('[data-field="price_per_unit"]').value;
-
     saveBtn2.disabled = true;
     saveBtn2.textContent = "Guardando…";
     try {
-      await fetchJson(`/api/admin/products/${id}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          name,
-          price_per_lb: Number(pricePerLb),
-          price_per_unit: Number(pricePerUnit),
-        }),
-      });
-      showToast("Producto actualizado.");
+      await saveRow(row);
       await loadProducts();
     } catch (err) {
       showToast(err.message || "No se pudo guardar.", "error");
@@ -130,6 +153,23 @@ tbody.addEventListener("click", async (e) => {
     }
   }
 });
+
+// Auto-guardar precios al salir del campo
+tbody.addEventListener(
+  "change",
+  debounce(async (e) => {
+    const input = e.target.closest("[data-field]");
+    if (!input) return;
+    const row = input.closest("tr[data-id]");
+    if (!row) return;
+    try {
+      await saveRow(row, { silent: true });
+      showToast("Precio guardado.");
+    } catch (err) {
+      showToast(err.message || "No se pudo guardar el precio.", "error");
+    }
+  }, 400)
+);
 
 searchInput.addEventListener("input", debounce(loadProducts, 300));
 
@@ -157,13 +197,15 @@ applyMultiplierBtn.addEventListener("click", async () => {
   const activeLabel = onlyActive ? "solo productos activos" : "todos los productos";
 
   const ok = window.confirm(
-    `${describeMultiplier(multiplier)}\n\nSe actualizarán ${scopeLabel} de ${activeLabel}.\n\n¿Continuar?`
+    `${describeMultiplier(multiplier)}\n\nPrimero se guardarán los precios editados en la tabla.\nLuego se actualizarán ${scopeLabel} de ${activeLabel}.\n\n¿Continuar?`
   );
   if (!ok) return;
 
   applyMultiplierBtn.disabled = true;
-  applyMultiplierBtn.textContent = "Aplicando…";
+  applyMultiplierBtn.textContent = "Guardando…";
   try {
+    await saveAllVisibleRows();
+    applyMultiplierBtn.textContent = "Aplicando…";
     const result = await fetchJson("/api/admin/products/multiply-prices", {
       method: "POST",
       body: JSON.stringify({

@@ -69,7 +69,13 @@ def register_page():
 def check_email_page():
     # Flujo de cuenta: no redirigir por sesión previa (p. ej. admin en otra pestaña)
     email = (request.args.get("email") or "").strip()
-    return render_template("check_email.html", email=email)
+    sent_raw = (request.args.get("sent") or "1").strip()
+    email_sent = sent_raw != "0"
+    return render_template(
+        "check_email.html",
+        email=email,
+        email_sent=email_sent,
+    )
 
 
 @app.route("/forgot-password")

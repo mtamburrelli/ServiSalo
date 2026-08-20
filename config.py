@@ -44,6 +44,7 @@ class Config:
     RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
     OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "")
     APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000")
+    MAIL_FROM = os.environ.get("MAIL_FROM", "ServiSalo <onboarding@resend.dev>")
 
 
 class DevConfig(Config):

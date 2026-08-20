@@ -204,7 +204,8 @@ form.addEventListener("submit", async (e) => {
     }
 
     const q = encodeURIComponent(data.email || payload.email || "");
-    window.location.href = `/check-email?email=${q}`;
+    const sent = data.email_sent ? "1" : "0";
+    window.location.href = `/check-email?email=${q}&sent=${sent}`;
   } catch {
     showError("Error de conexión. Intenta de nuevo.");
   } finally {
