@@ -65,6 +65,29 @@ def register_page():
     return render_template("register.html")
 
 
+@app.route("/check-email")
+def check_email_page():
+    if get_current_user():
+        return _post_login_redirect()
+    email = (request.args.get("email") or "").strip()
+    return render_template("check_email.html", email=email)
+
+
+@app.route("/forgot-password")
+def forgot_password_page():
+    if get_current_user():
+        return _post_login_redirect()
+    return render_template("forgot_password.html")
+
+
+@app.route("/reset-password")
+def reset_password_page():
+    if get_current_user():
+        return _post_login_redirect()
+    token = (request.args.get("token") or "").strip()
+    return render_template("reset_password.html", token=token)
+
+
 @app.route("/catalog")
 @login_required_page
 def catalog_page():
@@ -239,25 +262,61 @@ def api_update_address():
 
 # ——— Inicialización ———
 
-def _sqlite_column_names(conn):
+def _existing_columns(conn, table: str):
+    from sqlalchemy import inspect, text
+
+    dialect = db.engine.dialect.name
+    if dialect == "sqlite":
+        rows = conn.execute(text(f"PRAGMA table_info({table})"))
+        return {row[1] for row in rows}
+    return {col["name"] for col in inspect(db.engine).get_columns(table)}
+
+
+def _ensure_user_auth_columns():
+    """Añade columnas nuevas de verificación/reset si la tabla ya existía."""
     from sqlalchemy import text
-    return [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
+
+    needed = {
+        "email_verified": "BOOLEAN DEFAULT FALSE NOT NULL",
+        "email_verify_token": "VARCHAR(64)",
+        "email_verify_sent_at": "TIMESTAMP",
+        "password_reset_token": "VARCHAR(64)",
+        "password_reset_sent_at": "TIMESTAMP",
+    }
+    with db.engine.begin() as conn:
+        cols = _existing_columns(conn, "users")
+        added_verify = "email_verified" not in cols
+        for name, col_type in needed.items():
+            if name not in cols:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {name} {col_type}"))
+
+        # Solo al introducir la columna: cuentas viejas quedan verificadas
+        # (no tienen token pendiente). En arranques siguientes no se toca a nadie
+        # con email_verify_token (registro nuevo sin confirmar).
+        if added_verify:
+            conn.execute(
+                text(
+                    "UPDATE users SET email_verified = TRUE "
+                    "WHERE email_verify_token IS NULL"
+                )
+            )
 
 
 def init_db():
     db.create_all()
-    # Migración liviana solo para SQLite legado (Postgres usa create_all + modelos)
+    # Migración liviana solo para SQLite legado (columnas ruc / created_at)
     if db.engine.dialect.name == "sqlite":
-        with db.engine.connect() as conn:
+        with db.engine.begin() as conn:
             from sqlalchemy import text
-            cols = _sqlite_column_names(conn)
+
+            cols = _existing_columns(conn, "users")
             if "ruc" not in cols:
                 conn.execute(text("ALTER TABLE users ADD COLUMN ruc INTEGER"))
             if "ruc_dv" not in cols:
                 conn.execute(text("ALTER TABLE users ADD COLUMN ruc_dv INTEGER"))
             if "created_at" not in cols:
                 conn.execute(text("ALTER TABLE users ADD COLUMN created_at DATETIME"))
-            conn.commit()
+    _ensure_user_auth_columns()
     seed_catalog()
 
 

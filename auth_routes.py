@@ -4,7 +4,16 @@ from functools import wraps
 from flask import abort, jsonify, redirect, request, session, url_for
 from sqlalchemy.exc import IntegrityError
 
-from auth_utils import hash_password, verify_password
+from auth_utils import (
+    RESET_TOKEN_HOURS,
+    VERIFY_TOKEN_HOURS,
+    generate_url_token,
+    hash_password,
+    hash_token,
+    token_is_expired,
+    verify_password,
+)
+from emails import send_email_verification, send_password_reset
 from models import Address, User, db
 
 
@@ -63,6 +72,22 @@ def admin_required_api(view):
     return wrapped
 
 
+def _issue_email_verification(user: User) -> bool:
+    raw, digest = generate_url_token()
+    user.email_verify_token = digest
+    user.email_verify_sent_at = datetime.now(timezone.utc)
+    db.session.commit()
+    return send_email_verification(user, raw)
+
+
+def _issue_password_reset(user: User) -> bool:
+    raw, digest = generate_url_token()
+    user.password_reset_token = digest
+    user.password_reset_sent_at = datetime.now(timezone.utc)
+    db.session.commit()
+    return send_password_reset(user, raw)
+
+
 def register_auth_routes(app):
     @app.route("/api/auth/register", methods=["POST"])
     def api_register():
@@ -87,14 +112,13 @@ def register_auth_routes(app):
         except (TypeError, ValueError):
             ruc_dv = None
 
-        address_line  = (data.get("address_line") or "").strip()
+        address_line = (data.get("address_line") or "").strip()
         corregimiento = (data.get("corregimiento") or "").strip()
 
-        # Coordenadas opcionales del mapa (None si el usuario no movió el pin)
         raw_lat = data.get("latitude")
         raw_lng = data.get("longitude")
         try:
-            latitude  = float(raw_lat) if raw_lat is not None else None
+            latitude = float(raw_lat) if raw_lat is not None else None
             longitude = float(raw_lng) if raw_lng is not None else None
         except (TypeError, ValueError):
             latitude = longitude = None
@@ -133,6 +157,7 @@ def register_auth_routes(app):
             password_hash=hash_password(password),
             role="customer",
             is_active=True,
+            email_verified=False,
             created_at=datetime.now(timezone.utc),
         )
         address = Address(
@@ -152,18 +177,20 @@ def register_auth_routes(app):
             db.session.rollback()
             return jsonify({"error": "Ya existe una cuenta con ese correo."}), 409
 
+        # No iniciar sesión hasta verificar el correo
         session.clear()
-        session["user_id"] = user.id
-        session.permanent = True
+        emailed = _issue_email_verification(user)
 
         return jsonify(
             {
                 "ok": True,
-                "user": {
-                    "id": user.id,
-                    "name": user.name,
-                    "email": user.email,
-                },
+                "needs_verification": True,
+                "email_sent": emailed,
+                "email": user.email,
+                "message": (
+                    "Te enviamos un correo para verificar tu cuenta. "
+                    "Revisa tu bandeja (y spam) antes de iniciar sesión."
+                ),
             }
         ), 201
 
@@ -179,6 +206,16 @@ def register_auth_routes(app):
         user = User.query.filter_by(email=email, is_active=True).first()
         if not user or not verify_password(user.password_hash, password):
             return jsonify({"error": "Correo o contraseña incorrectos."}), 401
+
+        if not user.email_verified and not user.is_admin:
+            return jsonify({
+                "error": (
+                    "Debes verificar tu correo antes de ingresar. "
+                    "Revisa tu bandeja o solicita un nuevo enlace."
+                ),
+                "code": "email_not_verified",
+                "email": user.email,
+            }), 403
 
         session.clear()
         session["user_id"] = user.id
@@ -216,3 +253,115 @@ def register_auth_routes(app):
                 },
             }
         )
+
+    @app.route("/verify-email")
+    def verify_email_page():
+        raw = (request.args.get("token") or "").strip()
+        if not raw:
+            return render_template(
+                "auth_message.html",
+                title="Enlace inválido",
+                message="Falta el token de verificación.",
+                ok=False,
+            )
+
+        digest = hash_token(raw)
+        user = User.query.filter_by(email_verify_token=digest).first()
+        if not user or token_is_expired(user.email_verify_sent_at, VERIFY_TOKEN_HOURS):
+            return render_template(
+                "auth_message.html",
+                title="Enlace inválido o vencido",
+                message=(
+                    "Este enlace ya no es válido. Inicia el registro de nuevo "
+                    "o solicita otro correo de verificación desde el login."
+                ),
+                ok=False,
+                show_resend=True,
+            )
+
+        user.email_verified = True
+        user.email_verify_token = None
+        user.email_verify_sent_at = None
+        db.session.commit()
+
+        return render_template(
+            "auth_message.html",
+            title="Correo verificado",
+            message="Tu cuenta ya está activa. Ya puedes iniciar sesión.",
+            ok=True,
+            cta_href=url_for("login_page"),
+            cta_label="Ir a iniciar sesión",
+        )
+
+    @app.route("/api/auth/resend-verification", methods=["POST"])
+    def api_resend_verification():
+        data = request.get_json(silent=True) or {}
+        email = (data.get("email") or "").strip().lower()
+        # Respuesta genérica para no filtrar si el correo existe
+        generic = {
+            "ok": True,
+            "message": "Si la cuenta existe y no está verificada, enviamos un nuevo correo.",
+        }
+        if not email or "@" not in email:
+            return jsonify(generic)
+
+        user = User.query.filter_by(email=email, is_active=True).first()
+        if user and not user.email_verified and not user.is_admin:
+            _issue_email_verification(user)
+        return jsonify(generic)
+
+    @app.route("/api/auth/forgot-password", methods=["POST"])
+    def api_forgot_password():
+        data = request.get_json(silent=True) or {}
+        email = (data.get("email") or "").strip().lower()
+        generic = {
+            "ok": True,
+            "message": (
+                "Si existe una cuenta con ese correo, te enviamos un enlace "
+                "para restablecer la contraseña."
+            ),
+        }
+        if not email or "@" not in email:
+            return jsonify(generic)
+
+        user = User.query.filter_by(email=email, is_active=True).first()
+        if user:
+            _issue_password_reset(user)
+        return jsonify(generic)
+
+    @app.route("/api/auth/reset-password", methods=["POST"])
+    def api_reset_password():
+        data = request.get_json(silent=True) or {}
+        raw = (data.get("token") or "").strip()
+        password = data.get("password") or ""
+        password_confirm = data.get("password_confirm") or ""
+
+        if not raw:
+            return jsonify({"error": "Token inválido."}), 400
+        if len(password) < 6:
+            return jsonify({"error": "La contraseña debe tener al menos 6 caracteres."}), 400
+        if password != password_confirm:
+            return jsonify({"error": "Las contraseñas no coinciden."}), 400
+
+        digest = hash_token(raw)
+        user = User.query.filter_by(password_reset_token=digest).first()
+        if not user or token_is_expired(user.password_reset_sent_at, RESET_TOKEN_HOURS):
+            return jsonify({
+                "error": "Este enlace ya no es válido. Solicita uno nuevo.",
+            }), 400
+
+        user.password_hash = hash_password(password)
+        user.password_reset_token = None
+        user.password_reset_sent_at = None
+        # Si aún no había verificado el correo, al resetear desde su inbox lo damos por bueno
+        if not user.email_verified:
+            user.email_verified = True
+            user.email_verify_token = None
+            user.email_verify_sent_at = None
+        db.session.commit()
+        session.clear()
+
+        return jsonify({
+            "ok": True,
+            "message": "Contraseña actualizada. Ya puedes iniciar sesión.",
+        })

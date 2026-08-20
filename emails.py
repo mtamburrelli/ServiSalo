@@ -230,3 +230,91 @@ def send_order_rejected_to_customer(order, user) -> bool:
     except Exception:
         logger.exception("Error enviando rechazo de orden #%s.", order.id)
         return False
+
+
+# ── Verificar correo al crear cuenta ─────────────────────────────────────────
+
+def send_email_verification(user, raw_token: str) -> bool:
+    try:
+        _init_resend()
+        base_url = current_app.config["APP_BASE_URL"].rstrip("/")
+        verify_link = f"{base_url}/verify-email?token={raw_token}"
+
+        html = f"""
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
+          <h2 style="background:#0d9488;color:#fff;padding:16px 20px;margin:0;border-radius:6px 6px 0 0;">
+            Confirma tu correo — ServiSalo
+          </h2>
+          <div style="padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;">
+            <p>Hola <strong>{user.name}</strong>,</p>
+            <p>Gracias por registrarte. Haz clic en el botón para verificar tu correo y activar tu cuenta.</p>
+            <div style="text-align:center;margin:28px 0;">
+              <a href="{verify_link}"
+                 style="background:#0d9488;color:#fff;padding:12px 28px;border-radius:6px;
+                        text-decoration:none;font-weight:bold;font-size:15px;">
+                Verificar mi correo
+              </a>
+            </div>
+            <p style="color:#6b7280;font-size:13px;">
+              Si no creaste esta cuenta, ignora este mensaje. El enlace vence en 48 horas.
+            </p>
+            <p style="color:#9ca3af;font-size:12px;word-break:break-all;">{verify_link}</p>
+          </div>
+        </div>
+        """
+
+        resend.Emails.send({
+            "from": "ServiSalo <onboarding@resend.dev>",
+            "to": [user.email],
+            "subject": "Confirma tu correo — ServiSalo",
+            "html": html,
+        })
+        logger.info("Email de verificación enviado a %s.", user.email)
+        return True
+    except Exception:
+        logger.exception("Error enviando verificación a %s.", user.email)
+        return False
+
+
+# ── Recuperar contraseña ─────────────────────────────────────────────────────
+
+def send_password_reset(user, raw_token: str) -> bool:
+    try:
+        _init_resend()
+        base_url = current_app.config["APP_BASE_URL"].rstrip("/")
+        reset_link = f"{base_url}/reset-password?token={raw_token}"
+
+        html = f"""
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
+          <h2 style="background:#0d9488;color:#fff;padding:16px 20px;margin:0;border-radius:6px 6px 0 0;">
+            Restablecer contraseña — ServiSalo
+          </h2>
+          <div style="padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;">
+            <p>Hola <strong>{user.name}</strong>,</p>
+            <p>Recibimos una solicitud para restablecer tu contraseña. Usa el botón de abajo:</p>
+            <div style="text-align:center;margin:28px 0;">
+              <a href="{reset_link}"
+                 style="background:#0d9488;color:#fff;padding:12px 28px;border-radius:6px;
+                        text-decoration:none;font-weight:bold;font-size:15px;">
+                Elegir nueva contraseña
+              </a>
+            </div>
+            <p style="color:#6b7280;font-size:13px;">
+              Si no pediste este cambio, ignora este correo. El enlace vence en 1 hora.
+            </p>
+            <p style="color:#9ca3af;font-size:12px;word-break:break-all;">{reset_link}</p>
+          </div>
+        </div>
+        """
+
+        resend.Emails.send({
+            "from": "ServiSalo <onboarding@resend.dev>",
+            "to": [user.email],
+            "subject": "Restablecer contraseña — ServiSalo",
+            "html": html,
+        })
+        logger.info("Email de reset de contraseña enviado a %s.", user.email)
+        return True
+    except Exception:
+        logger.exception("Error enviando reset de contraseña a %s.", user.email)
+        return False

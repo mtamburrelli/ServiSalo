@@ -4,6 +4,7 @@ redirectIfLoggedIn();
 
 const form = document.getElementById("login-form");
 const errorEl = document.getElementById("login-error");
+const hintEl = document.getElementById("login-hint");
 const submitBtn = document.getElementById("login-submit");
 
 function showError(message) {
@@ -11,14 +12,18 @@ function showError(message) {
   errorEl.hidden = false;
 }
 
-function clearError() {
+function clearMessages() {
   errorEl.hidden = true;
   errorEl.textContent = "";
+  if (hintEl) {
+    hintEl.hidden = true;
+    hintEl.innerHTML = "";
+  }
 }
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  clearError();
+  clearMessages();
 
   const formData = new FormData(form);
   const email = formData.get("email")?.toString().trim() || "";
@@ -44,6 +49,12 @@ form.addEventListener("submit", async (e) => {
 
     if (!res.ok) {
       showError(data.error || "No se pudo iniciar sesión.");
+      if (data.code === "email_not_verified" && hintEl) {
+        const q = encodeURIComponent(data.email || email);
+        hintEl.innerHTML =
+          `Puedes <a href="/check-email?email=${q}">reenviar el correo de verificación</a>.`;
+        hintEl.hidden = false;
+      }
       return;
     }
 

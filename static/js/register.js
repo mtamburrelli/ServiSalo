@@ -203,7 +203,8 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
-    window.location.href = "/catalog";
+    const q = encodeURIComponent(data.email || payload.email || "");
+    window.location.href = `/check-email?email=${q}`;
   } catch {
     showError("Error de conexión. Intenta de nuevo.");
   } finally {

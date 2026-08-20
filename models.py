@@ -20,6 +20,15 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, nullable=True)
 
+    # Verificación de correo (clientes nuevos deben confirmar antes de entrar)
+    email_verified = db.Column(db.Boolean, default=False, nullable=False)
+    email_verify_token = db.Column(db.String(64), nullable=True, index=True)
+    email_verify_sent_at = db.Column(db.DateTime, nullable=True)
+
+    # Recuperación de contraseña
+    password_reset_token = db.Column(db.String(64), nullable=True, index=True)
+    password_reset_sent_at = db.Column(db.DateTime, nullable=True)
+
     addresses = db.relationship("Address", backref="user", lazy=True)
     orders = db.relationship("Order", backref="user", lazy=True)
 
@@ -39,6 +48,7 @@ class User(db.Model):
             "ruc_dv": self.ruc_dv,
             "role": self.role,
             "is_active": self.is_active,
+            "email_verified": self.email_verified,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "orders_count": len(self.orders),
         }

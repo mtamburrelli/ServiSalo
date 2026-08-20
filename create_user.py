@@ -39,6 +39,7 @@ def main():
             phone=args.phone,
             role=args.role,
             is_active=True,
+            email_verified=True,
             created_at=datetime.now(timezone.utc),
         )
         db.session.add(user)
