@@ -262,54 +262,89 @@ def api_update_address():
 
 # ——— Inicialización ———
 
-def _existing_columns(conn, table: str):
+import logging
+
+_startup_logger = logging.getLogger(__name__)
+
+
+def _existing_columns(table: str):
+    """Lista columnas de una tabla (sqlite o postgres)."""
     from sqlalchemy import inspect, text
 
     dialect = db.engine.dialect.name
     if dialect == "sqlite":
-        rows = conn.execute(text(f"PRAGMA table_info({table})"))
-        return {row[1] for row in rows}
+        with db.engine.connect() as conn:
+            rows = conn.execute(text(f"PRAGMA table_info({table})"))
+            return {row[1] for row in rows}
     return {col["name"] for col in inspect(db.engine).get_columns(table)}
 
 
+def _table_exists(table: str) -> bool:
+    from sqlalchemy import inspect
+
+    return table in inspect(db.engine).get_table_names()
+
+
 def _ensure_user_auth_columns():
-    """Añade columnas nuevas de verificación/reset si la tabla ya existía."""
+    """
+    Añade columnas de verificación/reset si faltan.
+    Evita ADD ... NOT NULL (puede tumbar Postgres con filas existentes).
+    """
     from sqlalchemy import text
 
-    needed = {
-        "email_verified": "BOOLEAN DEFAULT FALSE NOT NULL",
-        "email_verify_token": "VARCHAR(64)",
-        "email_verify_sent_at": "TIMESTAMP",
-        "password_reset_token": "VARCHAR(64)",
-        "password_reset_sent_at": "TIMESTAMP",
-    }
+    if not _table_exists("users"):
+        return
+
+    dialect = db.engine.dialect.name
+    # Sin NOT NULL en el ADD: más compatible; luego rellenamos valores.
+    if dialect == "postgresql":
+        needed = {
+            "email_verified": "BOOLEAN DEFAULT FALSE",
+            "email_verify_token": "VARCHAR(64)",
+            "email_verify_sent_at": "TIMESTAMP WITH TIME ZONE",
+            "password_reset_token": "VARCHAR(64)",
+            "password_reset_sent_at": "TIMESTAMP WITH TIME ZONE",
+        }
+    else:
+        needed = {
+            "email_verified": "BOOLEAN DEFAULT 0",
+            "email_verify_token": "VARCHAR(64)",
+            "email_verify_sent_at": "DATETIME",
+            "password_reset_token": "VARCHAR(64)",
+            "password_reset_sent_at": "DATETIME",
+        }
+
+    cols = _existing_columns("users")
+    added_verify = "email_verified" not in cols
+
     with db.engine.begin() as conn:
-        cols = _existing_columns(conn, "users")
-        added_verify = "email_verified" not in cols
         for name, col_type in needed.items():
             if name not in cols:
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {name} {col_type}"))
 
-        # Solo al introducir la columna: cuentas viejas quedan verificadas
-        # (no tienen token pendiente). En arranques siguientes no se toca a nadie
-        # con email_verify_token (registro nuevo sin confirmar).
         if added_verify:
+            # Cuentas ya existentes (sin token de verificación pendiente) quedan OK
             conn.execute(
                 text(
                     "UPDATE users SET email_verified = TRUE "
                     "WHERE email_verify_token IS NULL"
                 )
             )
+            conn.execute(
+                text(
+                    "UPDATE users SET email_verified = FALSE "
+                    "WHERE email_verified IS NULL"
+                )
+            )
 
 
 def init_db():
     db.create_all()
-    # Migración liviana solo para SQLite legado (columnas ruc / created_at)
-    if db.engine.dialect.name == "sqlite":
-        with db.engine.begin() as conn:
-            from sqlalchemy import text
+    if db.engine.dialect.name == "sqlite" and _table_exists("users"):
+        from sqlalchemy import text
 
-            cols = _existing_columns(conn, "users")
+        cols = _existing_columns("users")
+        with db.engine.begin() as conn:
             if "ruc" not in cols:
                 conn.execute(text("ALTER TABLE users ADD COLUMN ruc INTEGER"))
             if "ruc_dv" not in cols:
@@ -322,7 +357,14 @@ def init_db():
 
 # gunicorn (Render) no ejecuta __main__; crear tablas al importar la app
 with app.app_context():
-    init_db()
+    try:
+        init_db()
+    except Exception:
+        _startup_logger.exception(
+            "Fallo al inicializar la base de datos (init_db). "
+            "Revisa DATABASE_URL y los logs de migración."
+        )
+        raise
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from functools import wraps
 
-from flask import abort, jsonify, redirect, request, session, url_for
+from flask import abort, jsonify, redirect, render_template, request, session, url_for
 from sqlalchemy.exc import IntegrityError
 
 from auth_utils import (
