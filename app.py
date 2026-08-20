@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timezone
 
-from flask import Flask, jsonify, redirect, render_template, request, url_for
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 
 from admin_routes import register_admin_routes
 from auth_routes import (
@@ -67,23 +67,21 @@ def register_page():
 
 @app.route("/check-email")
 def check_email_page():
-    if get_current_user():
-        return _post_login_redirect()
+    # Flujo de cuenta: no redirigir por sesión previa (p. ej. admin en otra pestaña)
     email = (request.args.get("email") or "").strip()
     return render_template("check_email.html", email=email)
 
 
 @app.route("/forgot-password")
 def forgot_password_page():
-    if get_current_user():
-        return _post_login_redirect()
     return render_template("forgot_password.html")
 
 
 @app.route("/reset-password")
 def reset_password_page():
-    if get_current_user():
-        return _post_login_redirect()
+    # Crítico: limpiar sesión. Si el dueño/admin tenía cookie activa, el link
+    # de reset NO debe mandarlo al panel — debe mostrar el formulario del token.
+    session.clear()
     token = (request.args.get("token") or "").strip()
     return render_template("reset_password.html", token=token)
 

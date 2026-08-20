@@ -256,6 +256,8 @@ def register_auth_routes(app):
 
     @app.route("/verify-email")
     def verify_email_page():
+        # No reutilizar sesión de otro usuario (p. ej. admin) al abrir el link
+        session.clear()
         raw = (request.args.get("token") or "").strip()
         if not raw:
             return render_template(
