@@ -15,9 +15,9 @@
   </div>
   <div class="price-multiplier">
     <p class="price-multiplier__hint">
-      Edita los precios en la tabla (se guardan al salir del campo o con <strong>Guardar</strong>).
-      Luego usa el multiplicador: <strong>1.10</strong> = +10% · <strong>0.90</strong> = −10%.
-      Antes de multiplicar se guardan automáticamente los valores visibles.
+      Edita precios e imagen en la tabla (se guardan al salir del campo o con <strong>Guardar</strong>).
+      Multiplicador: <strong>1.10</strong> = +10% · <strong>0.90</strong> = −10%.
+      Los precios en <strong>0</strong> no se tocan; el resto sí se multiplica.
     </p>
     <div class="price-multiplier__row">
       <label class="field">
@@ -68,15 +68,17 @@
     <table class="admin-table" id="products-table">
       <thead>
         <tr>
+          <th class="admin-table__center">Img</th>
           <th>Producto</th>
           <th class="admin-table__num">Precio / lb (B/.)</th>
           <th class="admin-table__num">Precio / unidad (B/.)</th>
+          <th>URL imagen</th>
           <th class="admin-table__center">Estado</th>
           <th class="admin-table__center">Acciones</th>
         </tr>
       </thead>
       <tbody>
-        <tr><td colspan="5" class="admin-table__empty">Cargando…</td></tr>
+        <tr><td colspan="7" class="admin-table__empty">Cargando…</td></tr>
       </tbody>
     </table>
   </div>
@@ -101,8 +103,16 @@
       </label>
       <label class="field">
         <span class="field__label">URL de imagen (opcional)</span>
-        <input class="field__input" type="url" name="image_url" placeholder="https://…" />
+        <input
+          class="field__input"
+          type="text"
+          name="image_url"
+          placeholder="/static/images/products/garbanzos.jpg"
+        />
       </label>
+      <p class="price-multiplier__hint" style="margin:0">
+        Pon el archivo en <code>static/images/products/</code> y usa esa ruta, o una URL https pública.
+      </p>
       <p class="admin-error" id="product-form-error" hidden></p>
       <div class="admin-modal__actions">
         <button type="button" class="admin-btn" id="btn-cancel-product">Cancelar</button>

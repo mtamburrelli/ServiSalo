@@ -541,6 +541,25 @@
   border-color: var(--turquoise);
 }
 
+.admin-product-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1.5px solid var(--turquoise);
+  background: rgba(29, 185, 179, 0.08);
+  vertical-align: middle;
+}
+
+.admin-product-thumb--empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  border-style: dashed;
+}
+
 /* ── Formularios (modales / paneles laterales) ────────────────────────────── */
 .admin-modal-backdrop {
   position: fixed;

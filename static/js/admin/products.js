@@ -18,17 +18,26 @@ const multiplierPreview = document.getElementById("price-multiplier-preview");
 let products = [];
 
 function renderRow(p) {
+  const img = p.image_url
+    ? `<img class="admin-product-thumb" src="${escapeHtml(p.image_url)}" alt="" />`
+    : `<span class="admin-product-thumb admin-product-thumb--empty">—</span>`;
   return `
     <tr data-id="${p.id}">
+      <td class="admin-table__center">${img}</td>
       <td>
-        <input class="admin-inline-input admin-inline-input--name" style="width:180px;text-align:left"
+        <input class="admin-inline-input admin-inline-input--name" style="width:160px;text-align:left"
           data-field="name" value="${escapeHtml(p.name)}" />
       </td>
       <td class="admin-table__num">
-        <input class="admin-inline-input" type="number" min="0.01" step="0.01" data-field="price_per_lb" value="${p.price_per_lb}" />
+        <input class="admin-inline-input" type="number" min="0" step="0.01" data-field="price_per_lb" value="${p.price_per_lb}" />
       </td>
       <td class="admin-table__num">
-        <input class="admin-inline-input" type="number" min="0.01" step="0.01" data-field="price_per_unit" value="${p.price_per_unit}" />
+        <input class="admin-inline-input" type="number" min="0" step="0.01" data-field="price_per_unit" value="${p.price_per_unit}" />
+      </td>
+      <td>
+        <input class="admin-inline-input" style="width:220px;text-align:left"
+          data-field="image_url" value="${escapeHtml(p.image_url || "")}"
+          placeholder="/static/images/products/nombre.jpg" />
       </td>
       <td class="admin-table__center">
         <span class="badge badge--${p.is_active ? "active" : "inactive"}">${p.is_active ? "Activo" : "Inactivo"}</span>
@@ -47,7 +56,7 @@ function renderRow(p) {
 
 function render() {
   if (!products.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="admin-table__empty">No hay productos que coincidan.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="admin-table__empty">No hay productos que coincidan.</td></tr>`;
     return;
   }
   tbody.innerHTML = products.map(renderRow).join("");
@@ -76,9 +85,9 @@ function describeMultiplier(value) {
   }
   const pct = Math.round(Math.abs(m - 1) * 1000) / 10;
   if (m > 1) {
-    return `Esto subirá los precios un ${pct}% (× ${m}).`;
+    return `Esto subirá los precios (>0) un ${pct}% (× ${m}). Los que estén en 0 se quedan en 0.`;
   }
-  return `Esto bajará los precios un ${pct}% (× ${m}).`;
+  return `Esto bajará los precios (>0) un ${pct}% (× ${m}). Los que estén en 0 se quedan en 0.`;
 }
 
 function updateMultiplierPreview() {
@@ -89,10 +98,12 @@ function rowPayload(row) {
   const name = row.querySelector('[data-field="name"]').value.trim();
   const pricePerLb = Number(row.querySelector('[data-field="price_per_lb"]').value);
   const pricePerUnit = Number(row.querySelector('[data-field="price_per_unit"]').value);
+  const imageUrl = row.querySelector('[data-field="image_url"]').value.trim();
   return {
     name,
     price_per_lb: pricePerLb,
     price_per_unit: pricePerUnit,
+    image_url: imageUrl || null,
   };
 }
 
@@ -102,8 +113,11 @@ async function saveRow(row, { silent = false } = {}) {
   if (!payload.name) {
     throw new Error("El nombre no puede estar vacío.");
   }
-  if (!(payload.price_per_lb > 0) || !(payload.price_per_unit > 0)) {
-    throw new Error("Los precios deben ser mayores que 0. Guarda cada fila antes de multiplicar.");
+  if (!Number.isFinite(payload.price_per_lb) || payload.price_per_lb < 0) {
+    throw new Error("El precio por libra debe ser ≥ 0.");
+  }
+  if (!Number.isFinite(payload.price_per_unit) || payload.price_per_unit < 0) {
+    throw new Error("El precio por unidad debe ser ≥ 0.");
   }
   await fetchJson(`/api/admin/products/${id}`, {
     method: "PUT",
@@ -154,7 +168,7 @@ tbody.addEventListener("click", async (e) => {
   }
 });
 
-// Auto-guardar precios al salir del campo
+// Auto-guardar al salir del campo
 tbody.addEventListener(
   "change",
   debounce(async (e) => {
@@ -164,9 +178,9 @@ tbody.addEventListener(
     if (!row) return;
     try {
       await saveRow(row, { silent: true });
-      showToast("Precio guardado.");
+      showToast("Guardado.");
     } catch (err) {
-      showToast(err.message || "No se pudo guardar el precio.", "error");
+      showToast(err.message || "No se pudo guardar.", "error");
     }
   }, 400)
 );
@@ -214,7 +228,12 @@ applyMultiplierBtn.addEventListener("click", async () => {
         only_active: onlyActive,
       }),
     });
-    showToast(`Precios actualizados en ${result.updated_count} producto(s).`);
+    const skipped = result.skipped_zero_prices || 0;
+    const msg =
+      skipped > 0
+        ? `Actualizados ${result.changed_prices} precio(s). ${skipped} en 0 se dejaron igual.`
+        : `Precios actualizados (${result.changed_prices} cambios).`;
+    showToast(msg);
     await loadProducts();
   } catch (err) {
     showToast(err.message || "No se pudieron actualizar los precios.", "error");

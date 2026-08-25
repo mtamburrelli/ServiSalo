@@ -15,8 +15,8 @@ ORDER_STATUSES = ["pending", "confirmed", "dispatched", "delivered", "rejected"]
 
 # ── Helpers de validación ─────────────────────────────────────────────────────
 
-def _parse_price(value, *, allow_zero: bool = False):
-    """Convierte a float >= 0 (o > 0). None si es inválido."""
+def _parse_price(value, *, allow_zero: bool = True):
+    """Convierte a float >= 0. None si es inválido."""
     try:
         price = float(value)
     except (TypeError, ValueError):
@@ -145,9 +145,9 @@ def register_admin_routes(app):
         if not name:
             errors.append("El nombre es obligatorio.")
         if price_per_unit is None:
-            errors.append("El precio por unidad debe ser un número mayor que 0.")
+            errors.append("El precio por unidad debe ser un número mayor o igual a 0.")
         if price_per_lb is None:
-            errors.append("El precio por libra debe ser un número mayor que 0.")
+            errors.append("El precio por libra debe ser un número mayor o igual a 0.")
         if errors:
             return jsonify({"error": errors[0], "errors": errors}), 400
 
@@ -182,14 +182,14 @@ def register_admin_routes(app):
         if "price_per_unit" in data:
             price = _parse_price(data.get("price_per_unit"))
             if price is None:
-                errors.append("El precio por unidad debe ser un número mayor que 0.")
+                errors.append("El precio por unidad debe ser un número mayor o igual a 0.")
             else:
                 product.price_per_unit = price
 
         if "price_per_lb" in data:
             price = _parse_price(data.get("price_per_lb"))
             if price is None:
-                errors.append("El precio por libra debe ser un número mayor que 0.")
+                errors.append("El precio por libra debe ser un número mayor o igual a 0.")
             else:
                 product.price_per_lb = price
 
@@ -237,30 +237,29 @@ def register_admin_routes(app):
         if not products:
             return jsonify({"error": "No hay productos para actualizar."}), 400
 
-        # Si hay precios en 0, el multiplicador no cambia nada útil
-        zero_names = []
-        for product in products:
-            bad_lb = apply_to in ("both", "lb") and (product.price_per_lb or 0) <= 0
-            bad_unit = apply_to in ("both", "unit") and (product.price_per_unit or 0) <= 0
-            if bad_lb or bad_unit:
-                zero_names.append(product.name)
-        if zero_names:
-            sample = ", ".join(zero_names[:5])
-            more = f" (+{len(zero_names) - 5} más)" if len(zero_names) > 5 else ""
-            return jsonify({
-                "error": (
-                    "Hay productos con precio 0. Guarda precios mayores que 0 "
-                    f"antes de multiplicar. Ejemplos: {sample}{more}"
-                ),
-            }), 400
-
         updated = []
+        skipped_zero = 0
+        changed = 0
         for product in products:
+            # Precios en 0 se dejan igual; solo se multiplica lo que ya tiene valor
             if apply_to in ("both", "lb"):
-                product.price_per_lb = round(product.price_per_lb * multiplier, 2)
+                if (product.price_per_lb or 0) > 0:
+                    product.price_per_lb = round(product.price_per_lb * multiplier, 2)
+                    changed += 1
+                else:
+                    skipped_zero += 1
             if apply_to in ("both", "unit"):
-                product.price_per_unit = round(product.price_per_unit * multiplier, 2)
+                if (product.price_per_unit or 0) > 0:
+                    product.price_per_unit = round(product.price_per_unit * multiplier, 2)
+                    changed += 1
+                else:
+                    skipped_zero += 1
             updated.append(product.to_admin_dict())
+
+        if changed == 0:
+            return jsonify({
+                "error": "Ningún precio era mayor que 0; no hubo cambios.",
+            }), 400
 
         db.session.commit()
         return jsonify({
@@ -268,6 +267,8 @@ def register_admin_routes(app):
             "multiplier": multiplier,
             "apply_to": apply_to,
             "updated_count": len(updated),
+            "changed_prices": changed,
+            "skipped_zero_prices": skipped_zero,
             "products": updated,
         })
 
