@@ -8,7 +8,7 @@ from flask import jsonify, render_template, request
 
 from auth_routes import admin_required_api, admin_required_page, get_current_user
 from emails import send_order_confirmed_to_customer, send_order_rejected_to_customer
-from models import Address, Order, Product, User, db
+from models import Address, Order, OrderItem, Product, User, db
 
 ORDER_STATUSES = ["pending", "confirmed", "dispatched", "delivered", "rejected"]
 
@@ -282,6 +282,27 @@ def register_admin_routes(app):
         product.is_active = not product.is_active
         db.session.commit()
         return jsonify({"ok": True, "product": product.to_admin_dict()})
+
+    @app.route("/api/admin/products/<int:product_id>", methods=["DELETE"])
+    @admin_required_api
+    def api_admin_delete_product(product_id):
+        product = db.session.get(Product, product_id)
+        if not product:
+            return jsonify({"error": "Producto no encontrado."}), 404
+
+        used = OrderItem.query.filter_by(product_id=product.id).count()
+        if used:
+            return jsonify({
+                "error": (
+                    f"No se puede borrar «{product.name}»: aparece en {used} línea(s) "
+                    "de pedidos. Desactívalo para ocultarlo del catálogo."
+                ),
+            }), 409
+
+        name = product.name
+        db.session.delete(product)
+        db.session.commit()
+        return jsonify({"ok": True, "deleted_id": product_id, "name": name})
 
     # ── API: órdenes ──────────────────────────────────────────────────────────
 

@@ -48,6 +48,9 @@ function renderRow(p) {
           <button type="button" class="admin-btn admin-btn--sm ${p.is_active ? "admin-btn--danger" : "admin-btn--gold"}" data-toggle="${p.id}">
             ${p.is_active ? "Desactivar" : "Activar"}
           </button>
+          <button type="button" class="admin-btn admin-btn--sm admin-btn--danger" data-delete="${p.id}" data-name="${escapeHtml(p.name)}">
+            Borrar
+          </button>
         </div>
       </td>
     </tr>
@@ -137,6 +140,7 @@ async function saveAllVisibleRows() {
 tbody.addEventListener("click", async (e) => {
   const saveBtn2 = e.target.closest("[data-save]");
   const toggleBtn = e.target.closest("[data-toggle]");
+  const deleteBtn = e.target.closest("[data-delete]");
 
   if (saveBtn2) {
     const id = saveBtn2.dataset.save;
@@ -164,6 +168,27 @@ tbody.addEventListener("click", async (e) => {
     } catch (err) {
       showToast(err.message || "No se pudo actualizar.", "error");
       toggleBtn.disabled = false;
+    }
+  }
+
+  if (deleteBtn) {
+    const id = deleteBtn.dataset.delete;
+    const name = deleteBtn.dataset.name || "este producto";
+    const ok = window.confirm(
+      `¿Borrar permanentemente «${name}»?\n\nSi ya está en pedidos, no se podrá borrar (usa Desactivar).`
+    );
+    if (!ok) return;
+
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = "Borrando…";
+    try {
+      await fetchJson(`/api/admin/products/${id}`, { method: "DELETE" });
+      showToast(`Producto «${name}» eliminado.`);
+      await loadProducts();
+    } catch (err) {
+      showToast(err.message || "No se pudo borrar.", "error");
+      deleteBtn.disabled = false;
+      deleteBtn.textContent = "Borrar";
     }
   }
 });
