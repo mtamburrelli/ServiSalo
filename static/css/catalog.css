@@ -1035,3 +1035,114 @@
     grid-template-columns: repeat(5, 1fr);
   }
 }
+
+/* ── Tour de bienvenida ───────────────────────────────────────────────────── */
+body.tour-active {
+  overflow: hidden;
+}
+
+.tour-root {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+}
+
+.tour-dim {
+  display: none;
+}
+
+.tour-hole {
+  position: fixed;
+  border-radius: 16px;
+  box-shadow: 0 0 0 3px var(--turquoise), 0 0 0 9999px rgba(5, 8, 8, 0.72);
+  pointer-events: none;
+  transition: top 0.28s ease, left 0.28s ease, width 0.28s ease, height 0.28s ease;
+  z-index: 9001;
+}
+
+.tour-card {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--nav-height) + 18px);
+  z-index: 9002;
+  padding: 18px 18px 16px;
+  border-radius: 16px;
+  background: #141414;
+  border: 1px solid rgba(29, 185, 179, 0.35);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.tour-card--above-nav {
+  bottom: auto;
+  top: 72px;
+}
+
+.tour-card__step {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.tour-card__title {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.tour-card__text {
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.tour-card__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.tour-btn {
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.tour-btn--ghost {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--text-muted);
+}
+
+.tour-btn--primary {
+  background: var(--turquoise);
+  border: 1px solid var(--turquoise);
+  color: #042322;
+}
+
+.btn--ghost {
+  width: 100%;
+  padding: 14px;
+  border: 1.5px solid rgba(29, 185, 179, 0.4);
+  border-radius: 10px;
+  background: rgba(29, 185, 179, 0.08);
+  color: var(--turquoise);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn--ghost:hover {
+  background: rgba(29, 185, 179, 0.16);
+}

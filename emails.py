@@ -24,26 +24,60 @@ def _mail_from() -> str:
     )
 
 
-def _send_email(*, to: str, subject: str, html: str) -> bool:
-    """Envía un correo con Resend. Devuelve True/False y deja el error en logs."""
+def _send_email(*, to: str, subject: str, html: str) -> tuple[bool, str]:
+    """Envía un correo con Resend. Devuelve (ok, mensaje_de_error)."""
+    log = current_app.logger
     try:
         _init_resend()
-        result = resend.Emails.send({
+        payload = {
             "from": _mail_from(),
             "to": [to],
             "subject": subject,
             "html": html,
-        })
-        logger.info("Email enviado a %s — subject=%r result=%s", to, subject, result)
-        return True
+        }
+        owner = (current_app.config.get("OWNER_EMAIL") or "").strip()
+        if owner:
+            payload["reply_to"] = owner
+        result = resend.Emails.send(payload)
+        if isinstance(result, dict) and result.get("error"):
+            err = result["error"]
+            msg = err.get("message", str(err)) if isinstance(err, dict) else str(err)
+            log.error("Resend rechazó el email a %s: %s", to, msg)
+            return False, _friendly_resend_error(msg)
+        log.info("Email enviado a %s — subject=%r result=%s", to, subject, result)
+        return True, ""
     except Exception as exc:
-        logger.exception(
-            "Error enviando email a %s — subject=%r — %s",
-            to,
-            subject,
-            exc,
+        msg = _extract_resend_exc(exc)
+        log.exception("Error enviando email a %s — %s", to, msg)
+        return False, _friendly_resend_error(msg)
+
+
+def _extract_resend_exc(exc: Exception) -> str:
+    for attr in ("message", "error"):
+        val = getattr(exc, attr, None)
+        if isinstance(val, dict) and val.get("message"):
+            return str(val["message"])
+        if val:
+            return str(val)
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        err = body.get("message") or body.get("error")
+        if err:
+            return str(err)
+    return str(exc)
+
+
+def _friendly_resend_error(raw: str) -> str:
+    text = (raw or "").lower()
+    if "only send testing emails" in text or "verify a domain" in text:
+        return (
+            "Resend está en modo prueba: solo entrega correos a la cuenta "
+            "verificada en Resend. Para clientes reales hay que verificar un "
+            "dominio en resend.com y usar MAIL_FROM con ese dominio."
         )
-        return False
+    if "api key" in text or "unauthorized" in text:
+        return "La clave RESEND_API_KEY no es válida o no está en Render."
+    return raw or "No se pudo enviar el correo."
 
 
 def _fmt_payment(method: str) -> str:
@@ -171,11 +205,12 @@ def send_new_order_to_owner(order, user, address) -> bool:
         </div>
         """
 
-        return _send_email(
+        ok, _err = _send_email(
             to=owner_email,
             subject=f"Nueva orden #{order.id} de {user.name}",
             html=html,
         )
+        return ok
 
     except Exception:
         logger.exception("Error enviando email de nueva orden #%s al dueño.", order.id)
@@ -201,11 +236,12 @@ def send_order_confirmed_to_customer(order, user) -> bool:
       </div>
     </div>
     """
-    return _send_email(
+    ok, _err = _send_email(
         to=user.email,
         subject=f"Orden #{order.id} confirmada — ServiSalo",
         html=html,
     )
+    return ok
 
 
 # ── Email al cliente cuando su orden es rechazada ────────────────────────────
@@ -231,16 +267,17 @@ def send_order_rejected_to_customer(order, user) -> bool:
       </div>
     </div>
     """
-    return _send_email(
+    ok, _err = _send_email(
         to=user.email,
         subject=f"Orden #{order.id} no procesada — ServiSalo",
         html=html,
     )
+    return ok
 
 
 # ── Verificar correo al crear cuenta ─────────────────────────────────────────
 
-def send_email_verification(user, raw_token: str) -> bool:
+def send_email_verification(user, raw_token: str) -> tuple[bool, str]:
     base_url = current_app.config["APP_BASE_URL"].rstrip("/")
     verify_link = f"{base_url}/verify-email?token={raw_token}"
 
@@ -266,12 +303,11 @@ def send_email_verification(user, raw_token: str) -> bool:
       </div>
     </div>
     """
-    ok = _send_email(
+    ok, err = _send_email(
         to=user.email,
         subject="Confirma tu correo — ServiSalo",
         html=html,
     )
-    # Si Resend solo permite el correo del dueño (plan gratis), avisar al owner
     if not ok:
         owner = (current_app.config.get("OWNER_EMAIL") or "").strip()
         if owner and owner.lower() != (user.email or "").lower():
@@ -281,13 +317,13 @@ def send_email_verification(user, raw_token: str) -> bool:
                 html=(
                     f"<p>Falló el envío de verificación a <strong>{user.email}</strong> "
                     f"({user.name}).</p>"
+                    f"<p><strong>Motivo:</strong> {err}</p>"
                     f"<p>Enlace manual:</p>"
                     f"<p><a href=\"{verify_link}\">{verify_link}</a></p>"
-                    f"<p>Causa frecuente: Resend en modo prueba solo envía a tu correo "
-                    f"verificado. Verifica un dominio en Resend para clientes reales.</p>"
+                    f"<p>En el panel admin puedes marcar la cuenta como verificada.</p>"
                 ),
             )
-    return ok
+    return ok, err
 
 
 # ── Recuperar contraseña ─────────────────────────────────────────────────────
@@ -318,8 +354,9 @@ def send_password_reset(user, raw_token: str) -> bool:
       </div>
     </div>
     """
-    return _send_email(
+    ok, _err = _send_email(
         to=user.email,
         subject="Restablecer contraseña — ServiSalo",
         html=html,
     )
+    return ok

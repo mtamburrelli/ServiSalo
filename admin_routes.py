@@ -447,3 +447,26 @@ def register_admin_routes(app):
         user.email_verify_sent_at = None
         db.session.commit()
         return jsonify({"ok": True, "user": user.to_dict()})
+
+    @app.route("/api/admin/users/<int:user_id>", methods=["DELETE"])
+    @admin_required_api
+    def api_admin_delete_user(user_id):
+        user = db.session.get(User, user_id)
+        if not user:
+            return jsonify({"error": "Usuario no encontrado."}), 404
+        if user.is_admin:
+            return jsonify({"error": "No se puede borrar una cuenta de administrador."}), 403
+        current = get_current_user()
+        if current and current.id == user.id:
+            return jsonify({"error": "No puedes borrar tu propia cuenta."}), 403
+
+        for order in list(user.orders):
+            for item in list(order.items):
+                db.session.delete(item)
+            db.session.delete(order)
+        for address in list(user.addresses):
+            db.session.delete(address)
+        name = user.name
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({"ok": True, "deleted_id": user_id, "name": name})

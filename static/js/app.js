@@ -1,5 +1,6 @@
 import { createCart } from "./cart.js";
 import { requireAuth, logout } from "./auth.js";
+import { startCatalogTour } from "./tour.js";
 
 const me = await requireAuth();
 
@@ -555,8 +556,14 @@ $("#btn-logout")?.addEventListener("click", async () => {
   window.location.href = "/";
 });
 
+$("#btn-replay-tour")?.addEventListener("click", () => {
+  startCatalogTour({ switchTab, force: true });
+});
+
 // ── Arranque ───────────────────────────────────────────────────────────────
 
 cart.subscribe(renderCart);
-loadProducts();
+loadProducts().then(() => {
+  startCatalogTour({ switchTab });
+});
 renderCart();

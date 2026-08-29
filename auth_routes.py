@@ -72,7 +72,7 @@ def admin_required_api(view):
     return wrapped
 
 
-def _issue_email_verification(user: User) -> bool:
+def _issue_email_verification(user: User) -> tuple[bool, str]:
     raw, digest = generate_url_token()
     user.email_verify_token = digest
     user.email_verify_sent_at = datetime.now(timezone.utc)
@@ -179,17 +179,20 @@ def register_auth_routes(app):
 
         # No iniciar sesión hasta verificar el correo
         session.clear()
-        emailed = _issue_email_verification(user)
+        emailed, email_error = _issue_email_verification(user)
 
         return jsonify(
             {
                 "ok": True,
                 "needs_verification": True,
                 "email_sent": emailed,
+                "email_error": email_error or "",
                 "email": user.email,
                 "message": (
                     "Te enviamos un correo para verificar tu cuenta. "
                     "Revisa tu bandeja (y spam) antes de iniciar sesión."
+                    if emailed
+                    else "Tu cuenta se creó, pero el correo de verificación no se pudo enviar."
                 ),
             }
         ), 201
@@ -308,8 +311,20 @@ def register_auth_routes(app):
             return jsonify(generic)
 
         user = User.query.filter_by(email=email, is_active=True).first()
+        sent = False
+        error = ""
         if user and not user.email_verified and not user.is_admin:
-            _issue_email_verification(user)
+            sent, error = _issue_email_verification(user)
+        generic = {
+            "ok": True,
+            "email_sent": sent,
+            "email_error": error,
+            "message": (
+                "Si la cuenta existe y no está verificada, enviamos un nuevo correo."
+                if sent or not error
+                else error
+            ),
+        }
         return jsonify(generic)
 
     @app.route("/api/auth/forgot-password", methods=["POST"])

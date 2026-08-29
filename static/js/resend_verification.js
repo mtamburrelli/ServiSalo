@@ -27,9 +27,17 @@ if (form) {
         body: JSON.stringify({ email }),
       });
       const data = await res.json().catch(() => ({}));
-      successEl.textContent =
-        data.message || "Si la cuenta existe, enviamos un nuevo correo.";
-      successEl.hidden = false;
+      if (data.email_sent) {
+        successEl.textContent = "Enviamos un nuevo correo. Revisa bandeja y spam.";
+        successEl.hidden = false;
+      } else if (data.email_error) {
+        errorEl.textContent = data.email_error;
+        errorEl.hidden = false;
+      } else {
+        successEl.textContent =
+          data.message || "Si la cuenta existe, enviamos un nuevo correo.";
+        successEl.hidden = false;
+      }
     } catch {
       errorEl.textContent = "Error de conexión. Intenta de nuevo.";
       errorEl.hidden = false;

@@ -205,6 +205,11 @@ form.addEventListener("submit", async (e) => {
 
     const q = encodeURIComponent(data.email || payload.email || "");
     const sent = data.email_sent ? "1" : "0";
+    if (data.email_error) {
+      sessionStorage.setItem("servisalo_email_error", data.email_error);
+    } else {
+      sessionStorage.removeItem("servisalo_email_error");
+    }
     window.location.href = `/check-email?email=${q}&sent=${sent}`;
   } catch {
     showError("Error de conexión. Intenta de nuevo.");

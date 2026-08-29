@@ -125,5 +125,20 @@ if (container) {
     if (row) window.location.href = row.dataset.href;
   });
 
+  document.getElementById("btn-delete-user")?.addEventListener("click", async () => {
+    const name = document.querySelector(".admin-info-row__value")?.textContent || "esta cuenta";
+    const ok = window.confirm(
+      `¿Borrar permanentemente la cuenta de ${name}?\n\nSe eliminarán también sus pedidos y direcciones.`
+    );
+    if (!ok) return;
+    try {
+      await fetchJson(`/api/admin/users/${userId}`, { method: "DELETE" });
+      window.location.href = "/admin/users";
+    } catch (err) {
+      errorEl.hidden = false;
+      errorEl.textContent = err.message || "No se pudo borrar la cuenta.";
+    }
+  });
+
   loadUser();
 }
