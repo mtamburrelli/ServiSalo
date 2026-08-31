@@ -19,13 +19,13 @@ const STEPS = [
     target: "[data-tour='cart-pay']",
     fallback: "[data-tour='cart-panel']",
     title: "3. Envía tu pedido",
-    text: "Pulsa Enviar pedido. Queda pendiente y el dueño recibe un aviso para aceptarlo o rechazarlo.",
+    text: "Pulsa Enviar pedido. Queda pendiente y nuestro equipo recibe un aviso para aceptarlo o rechazarlo.",
   },
   {
     tab: "orders",
     target: "[data-tour='nav-orders']",
     title: "4. Sigue tu pedido",
-    text: "Si lo aceptan, te llega un correo con ACH y Yappy y el dueño te contacta para el pago y la entrega. Si lo rechazan, te escriben el motivo.",
+    text: "Si lo aceptan, te llega un correo con ACH y Yappy. Nuestro equipo se pondrá en contacto para el pago y la entrega; envía el comprobante al 66756455. Si lo rechazan, te escriben el motivo.",
   },
   {
     tab: "catalog",

@@ -224,9 +224,13 @@ function renderCart() {
            <button type="button" data-inc="${safeKey}" aria-label="Agregar una">+</button>
          </div>`;
 
+    const thumb = product.imageUrl
+      ? `<img src="${escapeHtml(product.imageUrl)}" alt="" />`
+      : IMAGE_PLACEHOLDER_SVG.replace("<span>Imagen</span>", "");
+
     return `
     <li class="cart-line" data-key="${safeKey}">
-      <div class="cart-line__thumb">${IMAGE_PLACEHOLDER_SVG.replace("<span>Imagen</span>", "")}</div>
+      <div class="cart-line__thumb">${thumb}</div>
       <div class="cart-line__info">
         <p class="cart-line__name">${escapeHtml(product.name)}</p>
         <p class="cart-line__price">${priceLabel}</p>
@@ -390,7 +394,7 @@ async function loadOrders() {
 
       const showPay = ["confirmed", "dispatched", "delivered"].includes(o.status);
       const paymentHtml = showPay
-        ? `<p class="order-card__payinfo">El dueño te contactará para el pago y la entrega.<br>ACH: ServiSalo S.A. · Banco General · Cuenta de Ahorros 04-10-98-711134-7<br>Yappy: 66756455</p>`
+        ? `<p class="order-card__payinfo">Nuestro equipo se pondrá en contacto contigo para el pago y la entrega.<br>ACH: ServiSalo S.A. · Banco General · Cuenta de Ahorros 04-10-98-711134-7<br>Yappy: 66756455<br>Envía el comprobante de pago al 66756455 para proceder a coordinar la entrega.</p>`
         : "";
 
       return `

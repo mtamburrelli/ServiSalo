@@ -245,11 +245,11 @@ def send_order_confirmed_to_customer(order, user) -> bool:
         <p>Hola <strong>{user.name}</strong>,</p>
         <p>Tu pedido <strong>#{order.id}</strong> por un total de
            <strong>B/. {order.total_amount:.2f}</strong> fue <strong>aceptado</strong>.</p>
-        <p>El dueño se pondrá en contacto contigo para coordinar el <strong>pago</strong>
+        <p>Nuestro equipo se pondrá en contacto contigo para coordinar el <strong>pago</strong>
            y la <strong>entrega</strong>.</p>
         {PAYMENT_DETAILS_HTML}
         <p style="color:#6b7280;font-size:13px;margin-top:8px;">
-          Puedes pagar por transferencia ACH o Yappy. Conserva el comprobante.
+          Envía el comprobante de pago al 66756455 para proceder a coordinar la entrega.
         </p>
       </div>
     </div>
