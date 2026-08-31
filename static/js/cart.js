@@ -1,9 +1,4 @@
-/** Estado del carrito en memoria (luego: API + sesión de cliente). */
-
-const PAYMENT_HINTS = {
-  ach: "Transferencia bancaria local (ACH). Recibirás los datos al confirmar.",
-  yappy: "Pago con Yappy (Panamá). Te indicaremos el número o enlace al confirmar.",
-};
+/** Estado del carrito en memoria. */
 
 function linePrice(product, unitType) {
   return unitType === "unit" ? product.pricePerUnit : product.pricePerLb;
@@ -20,7 +15,6 @@ function normalizeQty(qty, unitType) {
 export function createCart() {
   /** @type {Map<string, { product: object, qty: number, unitType: string }>} */
   const lines = new Map();
-  let paymentMethod = "ach";
   const listeners = new Set();
 
   function notify() {
@@ -31,21 +25,6 @@ export function createCart() {
     subscribe(fn) {
       listeners.add(fn);
       return () => listeners.delete(fn);
-    },
-
-    get paymentMethod() {
-      return paymentMethod;
-    },
-
-    get paymentHint() {
-      return PAYMENT_HINTS[paymentMethod];
-    },
-
-    setPaymentMethod(method) {
-      if (method === "ach" || method === "yappy") {
-        paymentMethod = method;
-        notify();
-      }
     },
 
     add(product, unitType = "lb") {

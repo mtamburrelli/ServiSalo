@@ -80,8 +80,20 @@ def _friendly_resend_error(raw: str) -> str:
     return raw or "No se pudo enviar el correo."
 
 
-def _fmt_payment(method: str) -> str:
-    return {"ach": "ACH (transferencia bancaria)", "yappy": "Yappy"}.get(method, method)
+PAYMENT_DETAILS_HTML = """
+        <div style="background:#f3f4f6;padding:16px 18px;border-radius:8px;margin:16px 0;">
+          <p style="margin:0 0 10px;"><strong>Datos para el pago</strong></p>
+          <p style="margin:0 0 6px;"><strong>ACH / Transferencia</strong></p>
+          <p style="margin:0 0 12px;">
+            ServiSalo S.A.<br>
+            Banco General<br>
+            Cuenta de Ahorros<br>
+            04-10-98-711134-7
+          </p>
+          <p style="margin:0 0 4px;"><strong>Yappy</strong></p>
+          <p style="margin:0;">66756455</p>
+        </div>
+        """
 
 
 def _fmt_unit(unit_type: str) -> str:
@@ -189,15 +201,19 @@ def send_new_order_to_owner(order, user, address) -> bool:
             </table>
 
             <p style="margin-top:16px;">
-              <strong>Método de pago:</strong> {_fmt_payment(order.payment_method)}
+              <strong>Pago:</strong> se coordina después de aceptar (ACH o Yappy).
             </p>
             {"<p><strong>Notas del cliente:</strong> " + order.notes + "</p>" if order.notes else ""}
 
-            <div style="text-align:center;margin-top:28px;">
+            <p style="margin:20px 0 8px;">
+              Entra al panel para <strong>aceptar o rechazar</strong> este pedido.
+              Si lo rechazas, debes indicar el motivo; el cliente lo recibirá por correo.
+            </p>
+            <div style="text-align:center;margin-top:20px;">
               <a href="{admin_link}"
                  style="background:#0d9488;color:#fff;padding:12px 28px;border-radius:6px;
                         text-decoration:none;font-weight:bold;font-size:15px;">
-                Ver orden en el panel →
+                Aceptar o rechazar en el panel →
               </a>
             </div>
 
@@ -227,11 +243,13 @@ def send_order_confirmed_to_customer(order, user) -> bool:
       </h2>
       <div style="padding:20px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;">
         <p>Hola <strong>{user.name}</strong>,</p>
-        <p>Tu orden <strong>#{order.id}</strong> por un total de
-           <strong>B/. {order.total_amount:.2f}</strong> ha sido <strong>confirmada</strong>.</p>
-        <p>Nos pondremos en contacto contigo pronto para coordinar la entrega.</p>
-        <p style="color:#6b7280;font-size:13px;margin-top:24px;">
-          Método de pago: {_fmt_payment(order.payment_method)}
+        <p>Tu pedido <strong>#{order.id}</strong> por un total de
+           <strong>B/. {order.total_amount:.2f}</strong> fue <strong>aceptado</strong>.</p>
+        <p>El dueño se pondrá en contacto contigo para coordinar el <strong>pago</strong>
+           y la <strong>entrega</strong>.</p>
+        {PAYMENT_DETAILS_HTML}
+        <p style="color:#6b7280;font-size:13px;margin-top:8px;">
+          Puedes pagar por transferencia ACH o Yappy. Conserva el comprobante.
         </p>
       </div>
     </div>

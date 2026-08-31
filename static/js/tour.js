@@ -1,4 +1,4 @@
-const STORAGE_KEY = "servisalo_tour_v1";
+const STORAGE_KEY = "servisalo_tour_v2";
 
 const STEPS = [
   {
@@ -12,20 +12,20 @@ const STEPS = [
     tab: "cart",
     target: "[data-tour='nav-cart']",
     title: "2. Revisa el carrito",
-    text: "Entra al carrito para ver lo que armaste y cambia las cantidades con + y −.",
+    text: "Aquí ves lo que armaste y cambias las cantidades. Aún no eliges cómo pagar: eso viene después.",
   },
   {
     tab: "cart",
     target: "[data-tour='cart-pay']",
     fallback: "[data-tour='cart-panel']",
-    title: "3. Paga y confirma",
-    text: "Elige ACH o Yappy y pulsa Confirmar pedido. Así se envía al dueño.",
+    title: "3. Envía tu pedido",
+    text: "Pulsa Enviar pedido. Queda pendiente y el dueño recibe un aviso para aceptarlo o rechazarlo.",
   },
   {
     tab: "orders",
     target: "[data-tour='nav-orders']",
     title: "4. Sigue tu pedido",
-    text: "Aquí verás el estado: pendiente → confirmado → despachado. El dueño acepta o rechaza, y te escribe por WhatsApp para la entrega.",
+    text: "Si lo aceptan, te llega un correo con ACH y Yappy y el dueño te contacta para el pago y la entrega. Si lo rechazan, te escriben el motivo.",
   },
   {
     tab: "catalog",

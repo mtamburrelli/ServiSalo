@@ -113,13 +113,11 @@ def api_create_order():
     user = get_current_user()
     data = request.get_json(silent=True) or {}
 
-    payment_method = (data.get("payment_method") or "").strip().lower()
     items_data = data.get("items") or []
     notes = (data.get("notes") or "").strip()
 
-    # ── Validaciones básicas ──
-    if payment_method not in ("ach", "yappy"):
-        return jsonify({"error": "Método de pago inválido. Usa 'ach' o 'yappy'."}), 400
+    # El pago se coordina después de que el dueño acepte el pedido
+    payment_method = "pending"
 
     if not items_data:
         return jsonify({"error": "El carrito está vacío."}), 400

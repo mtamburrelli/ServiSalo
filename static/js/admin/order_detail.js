@@ -89,7 +89,7 @@ if (container) {
       <div class="admin-info-row"><span class="admin-info-row__label">Teléfono</span>
         <span class="admin-info-row__value">${escapeHtml(user?.phone ?? "—")}</span></div>
       <div class="admin-info-row"><span class="admin-info-row__label">Pago</span>
-        <span class="admin-info-row__value">${order.payment_method === "ach" ? "ACH" : "Yappy"}</span></div>
+        <span class="admin-info-row__value">Se coordina al aceptar (ACH o Yappy)</span></div>
       <div class="admin-info-row"><span class="admin-info-row__label">Fecha</span>
         <span class="admin-info-row__value">${formatDate(order.created_at)}</span></div>
       ${order.notes ? `<div class="admin-info-row"><span class="admin-info-row__label">Notas</span>
@@ -125,6 +125,12 @@ if (container) {
 
   statusForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+    const reason = rejectionInput.value.trim();
+    if (statusSelect.value === "rejected" && !reason) {
+      showToast("Indica el motivo del rechazo.", "error");
+      rejectionInput.focus();
+      return;
+    }
     statusSaveBtn.disabled = true;
     statusSaveBtn.textContent = "Guardando…";
     try {
@@ -132,7 +138,7 @@ if (container) {
         method: "PUT",
         body: JSON.stringify({
           status: statusSelect.value,
-          rejection_reason: rejectionInput.value.trim(),
+          rejection_reason: reason,
         }),
       });
       renderOrder(order.order);

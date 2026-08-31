@@ -23,7 +23,6 @@ const cartLines      = $("#cart-lines");
 const cartCheckout   = $("#cart-checkout");
 const cartTotal      = $("#cart-total");
 const cartBadge      = $("#cart-badge");
-const paymentHint    = $("#payment-hint");
 const btnCheckout    = $("#btn-checkout");
 const toast          = $("#toast");
 const headerUserName     = $("#header-user-name");
@@ -243,7 +242,6 @@ function renderCart() {
   }).join("");
 
   cartTotal.textContent = formatTotal(cart.total);
-  paymentHint.textContent = cart.paymentHint;
   updateBadge();
 }
 
@@ -296,16 +294,6 @@ cartLines.addEventListener("keydown", (e) => {
   }
 });
 
-document.querySelectorAll(".payment-toggle__btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".payment-toggle__btn").forEach((b) => {
-      b.classList.toggle("payment-toggle__btn--active", b === btn);
-    });
-    cart.setPaymentMethod(btn.dataset.payment);
-    paymentHint.textContent = cart.paymentHint;
-  });
-});
-
 btnCheckout.addEventListener("click", async () => {
   if (cart.isEmpty()) return;
 
@@ -313,7 +301,6 @@ btnCheckout.addEventListener("click", async () => {
   btnCheckout.textContent = "Enviando…";
 
   const payload = {
-    payment_method: cart.paymentMethod,
     items: cart.getLines().map(({ product, unitType, qty }) => ({
       product_id: product.id,
       unit_type:  unitType,
@@ -337,13 +324,14 @@ btnCheckout.addEventListener("click", async () => {
     }
 
     cart.getLines().forEach(({ key }) => cart.remove(key));
+    ordersLoaded = false;
     switchTab("orders");
-    showToast(`Pedido #${body.order.id} registrado · B/. ${body.order.total_amount.toFixed(2)}`);
+    showToast(`Pedido #${body.order.id} enviado · B/. ${body.order.total_amount.toFixed(2)}`);
   } catch {
     showToast("Error de red. Intenta de nuevo.");
   } finally {
     btnCheckout.disabled = false;
-    btnCheckout.textContent = "Confirmar pedido";
+    btnCheckout.textContent = "Enviar pedido";
   }
 });
 
@@ -360,8 +348,6 @@ const STATUS_LABELS = {
   dispatched: "En camino",
   delivered:  "Entregado",
 };
-
-const PAYMENT_LABELS = { ach: "ACH", yappy: "Yappy" };
 
 let ordersLoaded = false;
 
@@ -388,7 +374,6 @@ async function loadOrders() {
       });
       const statusClass = `order-card__status--${o.status}`;
       const statusLabel = STATUS_LABELS[o.status] ?? o.status;
-      const paymentLabel = PAYMENT_LABELS[o.payment_method] ?? o.payment_method;
 
       const itemsHtml = o.items.map((item) => {
         const unitLabel = item.unit_type === "unit" ? "ud" : "lb";
@@ -403,6 +388,11 @@ async function loadOrders() {
         ? `<p class="order-card__rejection">Motivo: ${escapeHtml(o.rejection_reason)}</p>`
         : "";
 
+      const showPay = ["confirmed", "dispatched", "delivered"].includes(o.status);
+      const paymentHtml = showPay
+        ? `<p class="order-card__payinfo">El dueño te contactará para el pago y la entrega.<br>ACH: ServiSalo S.A. · Banco General · Cuenta de Ahorros 04-10-98-711134-7<br>Yappy: 66756455</p>`
+        : "";
+
       return `
       <li class="order-card">
         <div class="order-card__head">
@@ -414,8 +404,9 @@ async function loadOrders() {
         </div>
         <ul class="order-card__items">${itemsHtml}</ul>
         ${rejectionHtml}
+        ${paymentHtml}
         <div class="order-card__foot">
-          <span class="order-card__payment">${paymentLabel}</span>
+          <span class="order-card__payment">${o.status === "pending" ? "Esperando confirmación" : statusLabel}</span>
           <span class="order-card__total">B/. ${o.total_amount.toFixed(2)}</span>
         </div>
       </li>`;

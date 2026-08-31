@@ -52,8 +52,8 @@
             <select class="field__input field__select" id="status-select" name="status"></select>
           </label>
           <label class="field" id="rejection-field" hidden>
-            <span class="field__label">Motivo de rechazo</span>
-            <input class="field__input" type="text" id="rejection-reason" name="rejection_reason" placeholder="Ej. Producto agotado" />
+            <span class="field__label">Motivo de rechazo (obligatorio)</span>
+            <textarea class="field__input" id="rejection-reason" name="rejection_reason" maxlength="300" rows="3" placeholder="Ej. Producto agotado"></textarea>
           </label>
           <button type="submit" class="admin-btn admin-btn--primary" id="status-save-btn">Guardar estado</button>
         </form>

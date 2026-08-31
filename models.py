@@ -116,7 +116,7 @@ class Order(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     address_id = db.Column(db.Integer, db.ForeignKey("addresses.id"), nullable=False)
 
-    payment_method = db.Column(db.String(20), nullable=False)  # ach / yappy
+    payment_method = db.Column(db.String(20), nullable=False, default="pending")  # pending / ach / yappy
     status = db.Column(db.String(30), nullable=False, default="pending")
     # pending → confirmed → delivered → rejected
     total_amount = db.Column(db.Float, nullable=False)
@@ -134,6 +134,7 @@ class Order(db.Model):
             "total_amount": self.total_amount,
             "notes": self.notes,
             "created_at": self.created_at.isoformat(),
+            "rejection_reason": self.rejection_reason,
             "items": [i.to_dict() for i in self.items],
         }
 

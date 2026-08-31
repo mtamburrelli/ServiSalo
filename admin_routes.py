@@ -368,6 +368,9 @@ def register_admin_routes(app):
                 "error": f"Estado inválido. Usa uno de: {', '.join(ORDER_STATUSES)}."
             }), 400
 
+        if new_status == "rejected" and not rejection_reason:
+            return jsonify({"error": "Indica el motivo del rechazo."}), 400
+
         previous_status = order.status
         order.status = new_status
         order.rejection_reason = rejection_reason if new_status == "rejected" else None
