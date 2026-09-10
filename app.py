@@ -41,14 +41,25 @@ def _post_login_redirect():
     return redirect(url_for("catalog_page"))
 
 
+def _render_public_catalog():
+    """Catálogo público: se ve sin sesión. El pedido sí exige cuenta."""
+    user = get_current_user()
+    products = (
+        Product.query.filter_by(is_active=True).order_by(Product.name).all()
+    )
+    return render_template(
+        "catalog.html",
+        user=user,
+        products=products,
+        products_json=[p.to_dict() for p in products],
+    )
+
+
 # ——— Páginas ———
 
 @app.route("/")
 def home():
-    user = get_current_user()
-    if user and user.is_admin:
-        return redirect(url_for("admin_dashboard"))
-    return render_template("catalog.html", user=user)
+    return _render_public_catalog()
 
 
 @app.route("/login")
@@ -95,10 +106,7 @@ def reset_password_page():
 @app.route("/catalog")
 @app.route("/inicio")
 def catalog_page():
-    user = get_current_user()
-    if user and user.is_admin:
-        return redirect(url_for("admin_dashboard"))
-    return render_template("catalog.html", user=user)
+    return _render_public_catalog()
 
 
 # ——— API ———
