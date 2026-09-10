@@ -33,6 +33,14 @@ register_auth_routes(app)
 register_admin_routes(app)
 
 
+@app.after_request
+def _no_cache_js(response):
+    path = request.path or ""
+    if path.startswith("/static/js/"):
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response
+
+
 def _post_login_redirect():
     """Los admin van a su panel; los clientes al catálogo."""
     user = get_current_user()
