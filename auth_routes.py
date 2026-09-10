@@ -244,7 +244,7 @@ def register_auth_routes(app):
     def api_me():
         user = get_current_user()
         if not user:
-            return jsonify({"authenticated": False}), 401
+            return jsonify({"authenticated": False})
         return jsonify(
             {
                 "authenticated": True,

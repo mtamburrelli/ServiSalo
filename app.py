@@ -93,6 +93,7 @@ def reset_password_page():
 
 
 @app.route("/catalog")
+@app.route("/inicio")
 def catalog_page():
     user = get_current_user()
     if user and user.is_admin:
