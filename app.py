@@ -7,7 +7,6 @@ from admin_routes import register_admin_routes
 from auth_routes import (
     get_current_user,
     login_required_api,
-    login_required_page,
     register_auth_routes,
 )
 from emails import send_new_order_to_owner
@@ -46,9 +45,10 @@ def _post_login_redirect():
 
 @app.route("/")
 def home():
-    if get_current_user():
-        return _post_login_redirect()
-    return render_template("index.html")
+    user = get_current_user()
+    if user and user.is_admin:
+        return redirect(url_for("admin_dashboard"))
+    return render_template("catalog.html", user=user)
 
 
 @app.route("/login")
@@ -93,15 +93,16 @@ def reset_password_page():
 
 
 @app.route("/catalog")
-@login_required_page
 def catalog_page():
-    return render_template("catalog.html")
+    user = get_current_user()
+    if user and user.is_admin:
+        return redirect(url_for("admin_dashboard"))
+    return render_template("catalog.html", user=user)
 
 
-# ——— API (requieren sesión activa) ———
+# ——— API ———
 
 @app.route("/api/products")
-@login_required_api
 def api_products():
     products = Product.query.filter_by(is_active=True).order_by(Product.name).all()
     return jsonify([p.to_dict() for p in products])
